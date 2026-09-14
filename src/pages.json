@@ -1,0 +1,95 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "点餐",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/orders/orders",
+      "style": {
+        "navigationBarTitleText": "我的订单",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/invite/invite",
+      "style": {
+        "navigationBarTitleText": "接受邀请"
+      }
+    },
+    {
+      "path": "pages/admin/dishes/dishes",
+      "style": {
+        "navigationBarTitleText": "菜品管理"
+      }
+    },
+    {
+      "path": "pages/admin/categories/categories",
+      "style": {
+        "navigationBarTitleText": "分类管理"
+      }
+    },
+    {
+      "path": "pages/admin/orders/orders",
+      "style": {
+        "navigationBarTitleText": "订单管理",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/admin/stats/stats",
+      "style": {
+        "navigationBarTitleText": "点餐统计",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/admin/invite/invite",
+      "style": {
+        "navigationBarTitleText": "邀请好友"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#F5A623",
+    "navigationBarTitleText": "点餐",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFF8E7",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#F5A623",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "点餐",
+        "iconPath": "static/images/tab-food.png",
+        "selectedIconPath": "static/images/tab-food-active.png"
+      },
+      {
+        "pagePath": "pages/orders/orders",
+        "text": "订单",
+        "iconPath": "static/images/tab-order.png",
+        "selectedIconPath": "static/images/tab-order-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "static/images/tab-mine.png",
+        "selectedIconPath": "static/images/tab-mine-active.png"
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+<view class="page">
+  <view class="tip-card">
+    <text class="tip-title">如何邀请朋友？</text>
+    <text class="tip-line">1. 点击下方「生成邀请码」</text>
+    <text class="tip-line">2. 把邀请码发给朋友，或点「发送邀请」直接分享小程序</text>
+    <text class="tip-line">3. 朋友打开小程序输入邀请码，即可开始点餐</text>
+  </view>
+
+  <view class="gen-btn" bindtap="generate">＋ 生成邀请码</view>
+
+  <view class="list">
+    <view class="invite-card" wx:for="{{invitations}}" wx:key="_id">
+      <view class="invite-main">
+        <text class="invite-code">{{item.code}}</text>
+        <text class="invite-state {{item.used ? 'used' : 'unused'}}">{{item.used ? '已使用' : '未使用'}}</text>
+      </view>
+      <view class="invite-sub">生成于 {{item.timeText}}</view>
+      <view class="invite-actions">
+        <button class="share-btn" open-type="share" data-code="{{item.code}}">发送邀请</button>
+        <text class="copy-btn" data-code="{{item.code}}" bindtap="copyCode">复制邀请码</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:if="{{invitations.length === 0 && !loading}}" class="empty">
+    <text class="icon">👥</text>
+    还没有邀请码
+  </view>
+</view>

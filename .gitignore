@@ -1,0 +1,16 @@
+# 依赖与产物
+node_modules/
+dist/
+unpackage/
+
+# 云函数依赖（云端安装，不入库）
+.cloudfunctions/
+
+# 微信开发者工具在产物目录里生成的私有配置
+project.private.config.json
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
+*.log

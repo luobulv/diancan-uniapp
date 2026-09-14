@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="ltR70PHzElmTrILGGnvNoF">
+<head data-page-node-id="tEPb8EaZcUyNIzIM1IcTuq">
+<meta charset="UTF-8" data-page-node-id="ekyDwOZxTzoyQ1A5wSUa3S">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="chcYouXbbWTgdODg2q1bOU">
+<title>呼噜点餐 · 顾客端视觉升级预览</title>
+<style>
+  /* ========== 令牌（与小程序 app.wxss 同源，1rpx = 0.5px） ========== */
+  :root {
+    --cream: #FFF8E7;
+    --cream-deep: #FBF0D2;
+    --paper: #FFFDF6;
+    --yellow: #F7C948;
+    --yellow-mist: #FBEEC9;
+    --yellow-soft: #FDF3D6;
+    --amber: #F5A623;
+    --caramel: #D9822B;
+    --brown: #6B4423;
+    --ink: #4A2F18;
+    --tan: #8B5A2B;
+    --sand: #B98A4A;
+    --line: #F1E3BC;
+    --r-plate: 16px;
+    --r-bowl: 12px;
+    --r-pill: 999px;
+    --shadow-sm: 0 1px 4px rgba(180,120,50,.08);
+    --shadow-md: 0 4px 12px rgba(180,120,50,.12);
+    --shadow-pop: 0 6px 16px rgba(245,166,35,.30);
+    --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+    --ease-out: cubic-bezier(0.16,1,0.3,1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #FFF8E7 0%, #FBF0D2 60%, #F7E9C4 100%);
+    min-height: 100vh;
+    padding: 40px 24px 64px;
+    color: var(--ink);
+  }
+
+  /* ========== 页头 ========== */
+  .head { text-align: center; margin-bottom: 36px; }
+  .head h1 { font-size: 26px; font-weight: 800; letter-spacing: 2px; color: var(--brown); }
+  .head p { font-size: 13px; color: var(--tan); margin-top: 8px; letter-spacing: 1px; }
+  .head .dots { color: var(--sand); letter-spacing: 6px; margin-top: 10px; font-size: 12px; }
+
+  /* ========== 三台手机 ========== */
+  .stage { display: flex; flex-wrap: wrap; gap: 36px; justify-content: center; align-items: flex-start; }
+  .phone-unit { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .phone-label { font-size: 13px; font-weight: 700; color: var(--brown); letter-spacing: 2px;
+    background: var(--paper); border: 1.5px dashed var(--line); border-radius: 999px; padding: 5px 18px; }
+  .phone {
+    width: 375px; height: 720px;
+    background: var(--cream);
+    border-radius: 44px;
+    border: 8px solid #6B4423;
+    box-shadow: 0 32px 64px rgba(107,68,35,.22);
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .phone::after { /* 圆点纹理氛围层 */
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(245,166,35,.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .notes { width: 340px; font-size: 12px; line-height: 1.9; color: var(--tan);
+    background: var(--paper); border-radius: 14px; padding: 12px 16px; border: 1.5px dashed var(--line); }
+  .notes b { color: var(--caramel); font-weight: 700; }
+
+  /* ========== 通用组件 ========== */
+  .banner {
+    position: relative; display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 15px; background: linear-gradient(135deg, #F7C948, #F5A623);
+    overflow: hidden; flex-shrink: 0;
+    animation: banner-drop .52s var(--ease-spring) both;
+  }
+  .banner::before { content: ''; position: absolute; right: -40px; top: -60px; width: 160px; height: 160px;
+    border-radius: 50%; background: rgba(255,253,246,.18); }
+  .banner::after { content: ''; position: absolute; left: -30px; bottom: -55px; width: 120px; height: 120px;
+    border-radius: 50%; background: rgba(107,68,35,.08); }
+  .brand-left { display: flex; align-items: center; position: relative; z-index: 1; }
+  .brand-logo { width: 44px; height: 44px; border-radius: 50%; background: #fff; margin-right: 10px;
+    border: 2px solid rgba(255,253,246,.7); box-shadow: 0 3px 8px rgba(107,68,35,.18);
+    transform: rotate(-6deg); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .brand-title { font-size: 19px; font-weight: 800; letter-spacing: 1.5px; color: var(--brown); }
+  .brand-sub { font-size: 11px; color: rgba(74,47,24,.72); margin-top: 3px; letter-spacing: .5px; }
+  .stamp { position: relative; z-index: 1; width: 52px; height: 52px; border-radius: 50%;
+    border: 1.5px dashed rgba(255,253,246,.9); background: rgba(255,253,246,.28);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transform: rotate(8deg); animation: stamp-in .5s var(--ease-spring) .32s both; }
+  .stamp .si { font-size: 19px; line-height: 1.1; }
+  .stamp .st { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--brown); margin-top: 1px; }
+
+  /* ========== 屏1：点餐首页 ========== */
+  .catalog { flex: 1; display: flex; min-height: 0; }
+  .cate-menu { width: 92px; background: var(--yellow-mist); flex-shrink: 0; padding-top: 4px;
+    animation: fade-right .4s var(--ease-out) .09s both; }
+  .cate-item { padding: 15px 6px; font-size: 13px; color: var(--tan); text-align: center; position: relative; }
+  .cate-item.active { background: var(--cream); color: var(--caramel); font-weight: 800; }
+  .cate-item.active::before { content: ''; position: absolute; left: 0; top: 13px; bottom: 13px; width: 4px;
+    border-radius: 0 4px 4px 0; background: linear-gradient(180deg, var(--yellow), var(--amber)); }
+  .dish-pane { flex: 1; padding: 8px 10px; overflow: hidden; }
+  .group-header { display: flex; align-items: center; padding: 9px 2px 7px; margin-bottom: 7px;
+    animation: fade-up .32s var(--ease-out) .12s both; }
+  .group-name { font-size: 14px; font-weight: 800; color: var(--brown); letter-spacing: .5px;
+    display: flex; align-items: center; flex-shrink: 0; }
+  .group-name::before { content: ''; width: 7px; height: 7px; border-radius: 50% 50% 2px 50%;
+    background: var(--amber); margin-right: 6px; transform: rotate(45deg); }
+  .group-line { flex: 1; margin: 0 8px; border-bottom: 1px dashed var(--line); }
+  .group-count { font-size: 11px; color: var(--tan); font-variant-numeric: tabular-nums; }
+  .dish-card { display: flex; background: var(--paper); border-radius: 14px 14px 14px 5px;
+    padding: 10px; margin-bottom: 10px; box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(241,227,188,.6); animation: fade-up .42s var(--ease-out) both; }
+  .dish-card:nth-child(2) { animation-delay: .15s; } .dish-card:nth-child(3) { animation-delay: .21s; }
+  .dish-card:nth-child(4) { animation-delay: .27s; }
+  .dish-img { width: 90px; height: 90px; border-radius: 10px; flex-shrink: 0; background: var(--yellow-mist);
+    border: 2px solid #fff; box-shadow: 0 2px 6px rgba(180,120,50,.10);
+    display: flex; align-items: center; justify-content: center; font-size: 40px; }
+  .dish-info { flex: 1; margin-left: 10px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+  .dish-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .order-count { font-size: 11px; color: var(--tan); margin-top: 2px; }
+  .stars { color: var(--amber); font-size: 12px; letter-spacing: 2px; margin-top: 3px; }
+  .dish-bottom { display: flex; justify-content: flex-end; align-items: center; gap: 0; }
+  .step-num { min-width: 28px; text-align: center; font-size: 15px; font-weight: 700; color: var(--caramel); }
+  .step-btn { width: 28px; height: 28px; border-radius: 50%; background: var(--yellow-mist); color: var(--tan);
+    display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .step-btn.add { background: linear-gradient(135deg, var(--yellow), var(--amber)); color: var(--ink);
+    font-weight: 700; box-shadow: var(--shadow-pop); }
+  .cart-bar { position: absolute; left: 10px; right: 10px; bottom: 18px; height: 56px;
+    background: var(--paper); display: flex; align-items: center; padding: 0 8px 0 10px;
+    border-radius: var(--r-pill); box-shadow: 0 6px 20px rgba(107,68,35,.18);
+    border: 1px solid rgba(241,227,188,.8); animation: bar-rise .48s var(--ease-spring) .24s both; z-index: 2; }
+  .cart-icon-wrap { position: relative; width: 44px; }
+  .cart-plate { width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--yellow), var(--amber));
+    display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-pop); transform: rotate(-6deg); }
+  .cart-plate span { font-size: 22px; }
+  .cart-badge { position: absolute; top: -4px; right: -5px; min-width: 18px; height: 18px; border-radius: 9px;
+    background: var(--brown); color: var(--cream); font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; padding: 0 5px;
+    border: 1.5px solid var(--paper); animation: badge-pop .4s var(--ease-spring) .36s both; }
+  .cart-total { flex: 1; margin-left: 10px; font-size: 12px; color: var(--tan); }
+  .cart-total b { font-size: 18px; color: var(--caramel); font-weight: 800; margin-left: 4px; }
+  .cart-cta { width: 104px; height: 41px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #F7C948, #F5A623); color: var(--ink);
+    border-radius: var(--r-pill); font-size: 15px; font-weight: 800; letter-spacing: 1px; box-shadow: var(--shadow-pop); }
+
+  /* ========== 屏2：订单页 ========== */
+  .filter-bar { display: flex; gap: 8px; padding: 12px 12px 8px; flex-wrap: wrap;
+    animation: fade-up .38s var(--ease-out) .12s both; }
+  .chip { display: inline-flex; align-items: center; padding: 5px 12px; font-size: 13px;
+    border-radius: var(--r-pill); background: var(--paper); color: var(--caramel); border: 1px solid var(--line); }
+  .chip.active { background: linear-gradient(135deg, var(--yellow), var(--amber)); color: var(--ink);
+    border-color: transparent; font-weight: 700; box-shadow: var(--shadow-pop); }
+  .chip.plain { color: var(--tan); }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 15px 12px;
+    animation: fade-up .38s var(--ease-out) .18s both; }
+  .summary-text { font-size: 13px; color: var(--tan); }
+  .summary-text b { color: var(--caramel); }
+  .tab-group { display: flex; background: var(--paper); border-radius: var(--r-pill); padding: 3px; border: 1px solid var(--line); }
+  .tab-pill { padding: 4px 14px; font-size: 12px; color: var(--tan); border-radius: var(--r-pill); }
+  .tab-pill.active { background: linear-gradient(135deg, var(--yellow), var(--amber)); color: var(--ink); font-weight: 700; }
+  .order-card { margin: 0 12px 10px; background: var(--paper); border-radius: 14px 5px 14px 14px;
+    padding: 12px; box-shadow: var(--shadow-sm); border: 1px solid rgba(241,227,188,.6);
+    animation: fade-up .42s var(--ease-out) both; }
+  .order-card:nth-of-type(1) { animation-delay: .05s; } .order-card:nth-of-type(2) { animation-delay: .11s; }
+  .order-head { display: flex; align-items: center; gap: 6px; }
+  .order-dot { width: 7px; height: 7px; border-radius: 50% 50% 2px 50%; background: var(--amber); transform: rotate(45deg); }
+  .order-time { font-size: 12px; color: var(--tan); }
+  .order-nickname { font-size: 12px; color: var(--caramel); font-weight: 700; margin-left: 6px;
+    padding: 1px 7px; background: var(--yellow-soft); border-radius: var(--r-pill); }
+  .order-items { font-size: 14px; color: var(--ink); margin: 8px 0; line-height: 1.6; }
+  .order-remark { font-size: 12px; color: var(--tan); border-top: 1px dashed var(--line); padding-top: 7px; }
+  .diary { padding: 10px 12px 0; }
+  .diary-card { position: relative; background: var(--paper); border-radius: var(--r-bowl);
+    padding: 15px 12px 12px; margin-bottom: 14px; border: 1.5px dashed var(--line);
+    box-shadow: var(--shadow-sm); animation: fade-up .42s var(--ease-out) .2s both; }
+  .diary-tape { position: absolute; top: -7px; left: 50%; width: 66px; height: 16px; margin-left: -33px;
+    transform: rotate(-3deg); border-radius: 2px;
+    background: repeating-linear-gradient(45deg, rgba(247,201,72,.85) 0 8px, rgba(245,166,35,.7) 8px 16px);
+    box-shadow: 0 1px 3px rgba(107,68,35,.12); }
+  .diary-time { font-size: 11px; color: var(--tan); }
+  .diary-items { font-size: 14px; color: var(--ink); margin: 6px 0; line-height: 1.6; }
+  .diary-remark { font-size: 12px; color: var(--caramel); font-style: italic; }
+  .tab-divider { padding: 0 6px; }
+  .tab-divider h4 { font-size: 12px; color: var(--sand); letter-spacing: 2px; margin: 14px 8px 2px; font-weight: 600; }
+
+  /* ========== 屏3：我的页 ========== */
+  .profile-card { position: relative; display: flex; align-items: center; padding: 22px 15px 20px;
+    background: linear-gradient(135deg, #F7C948, #F5A623); overflow: hidden; flex-shrink: 0;
+    animation: banner-drop .52s var(--ease-spring) both; }
+  .profile-card::before { content: ''; position: absolute; right: -40px; top: -60px; width: 160px; height: 160px;
+    border-radius: 50%; background: rgba(255,253,246,.18); }
+  .profile-card::after { content: ''; position: absolute; left: -30px; bottom: -55px; width: 120px; height: 120px;
+    border-radius: 50%; background: rgba(107,68,35,.08); }
+  .avatar-col { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1; }
+  .avatar { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 3px solid rgba(255,253,246,.85);
+    box-shadow: 0 4px 10px rgba(107,68,35,.22); transform: rotate(-4deg);
+    display: flex; align-items: center; justify-content: center; font-size: 38px; }
+  .avatar-edit { font-size: 11px; color: rgba(74,47,24,.72); margin-top: 6px; }
+  .profile-info { position: relative; z-index: 1; margin-left: 15px; flex: 1; }
+  .nickname { font-size: 19px; font-weight: 800; letter-spacing: 1px; color: var(--brown);
+    border-bottom: 1.5px dashed rgba(255,253,246,.6); padding-bottom: 5px; }
+  .role-tag { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: var(--r-pill);
+    margin-top: 8px; letter-spacing: 1px; transform: rotate(2deg);
+    background: rgba(255,253,246,.35); border: 1px dashed rgba(255,253,246,.9);
+    color: var(--brown); font-weight: 800; }
+  .card { margin: 12px 10px 0; background: var(--paper); border-radius: var(--r-plate) var(--r-bowl) var(--r-bowl) var(--r-plate);
+    padding: 14px; box-shadow: var(--shadow-sm); border: 1px solid rgba(241,227,188,.6);
+    animation: fade-up .42s var(--ease-out) .2s both; }
+  .card.heat { animation-delay: .28s both; }
+  .section-title { display: flex; align-items: center; font-size: 14px; font-weight: 800; color: var(--ink); letter-spacing: .5px; }
+  .section-title::before { content: ''; width: 5px; height: 13px; border-radius: 3px;
+    background: linear-gradient(180deg, var(--yellow), var(--amber)); margin-right: 6px; }
+  .admin-grid { display: flex; flex-wrap: wrap; padding-top: 10px; }
+  .admin-item { width: 25%; display: flex; flex-direction: column; align-items: center; padding: 8px 0 10px; }
+  .admin-icon-box { width: 50px; height: 50px; border-radius: 15px; background: var(--yellow-soft);
+    border: 1px solid rgba(241,227,188,.9); box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 7px; }
+  .admin-item:nth-child(odd) .admin-icon-box { transform: rotate(-4deg); }
+  .admin-item:nth-child(even) .admin-icon-box { transform: rotate(3deg); }
+  .admin-name { font-size: 12px; color: var(--ink); }
+  .heat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .heat-help { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--sand); color: var(--tan);
+    font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .heat-grid { display: flex; gap: 4px; }
+  .heat-col { display: flex; flex-direction: column; gap: 4px; }
+  .heat-day { width: 10px; height: 10px; border-radius: 2.5px; background: #f3efe2; }
+  .heat-l1 { background: #fde8c6; } .heat-l2 { background: #fbd28d; }
+  .heat-l3 { background: #f5a623; } .heat-l4 { background: #d9822b; }
+  .footer-tip { text-align: center; color: var(--tan); font-size: 12px; letter-spacing: .5px; margin-top: 24px;
+    animation: fade-up .42s var(--ease-out) .36s both; }
+  .footer-tip::before { content: '~ '; color: var(--sand); }
+  .footer-tip::after { content: ' ~'; color: var(--sand); }
+
+  /* ========== 动效 ========== */
+  @keyframes banner-drop { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+  @keyframes stamp-in { 0% { opacity: 0; transform: rotate(8deg) scale(1.8); } 60% { opacity: 1; transform: rotate(8deg) scale(.92); } 100% { opacity: 1; transform: rotate(8deg) scale(1); } }
+  @keyframes fade-right { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+  @keyframes fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes bar-rise { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
+  @keyframes badge-pop { 0% { transform: scale(0); } 70% { transform: scale(1.3); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+</head>
+<body data-page-node-id="STDeJIq4ZWO19djk3Po6Tx">
+
+<div class="head" data-page-node-id="y5c53tpe8Q6AFYCtp1mndl">
+  <h1 data-page-node-id="anoFnbPBtcYmAPQM8zuC2A">🐷 呼噜点餐 · 顾客端视觉升级</h1>
+  <p data-page-node-id="oTkDt2qhGC7SS0dzGxDeGe">手作食堂方向 —— 营业印章 · 价签分组 · 器皿卡片 · 纸胶带手账 · 贴纸墙</p>
+  <div class="dots" data-page-node-id="mIqWDDcYKHcv7bYA4opHMc">· · ·</div>
+</div>
+
+<div class="stage" data-page-node-id="4v5DCw7sgmGrP92750r9Dh">
+
+  <!-- ============ 屏 1：点餐首页 ============ -->
+  <div class="phone-unit" data-page-node-id="2aDvxFvLRY8QNbxODrrLq9">
+    <div class="phone-label" data-page-node-id="NDHXHDgPXDnFFoLddQAilM">① 点餐首页</div>
+    <div class="phone" data-page-node-id="f8j1Xy0QaPBZYRByQJJHua">
+      <div class="banner" data-page-node-id="0sq9xbJmjGzMnYZwGyH0JR">
+        <div class="brand-left" data-page-node-id="5JTSswkzNCMTQd2gqugeYi">
+          <div class="brand-logo" data-page-node-id="FBkQbEv5iVP6IFr8RFn2ti">🐷</div>
+          <div data-page-node-id="VUowDXwJZdvxnObQwi5QzL">
+            <div class="brand-title" data-page-node-id="6hgsubWg2XNUfkG8hfrDpS">呼噜点餐</div>
+            <div class="brand-sub" data-page-node-id="y6y9usEoet2mDY2Sgcrbqz">今日好好吃饭，明天好好生活</div>
+          </div>
+        </div>
+        <div class="stamp" data-page-node-id="WO91eoKrNGKZjN3jGevuEE"><span class="si" data-page-node-id="DPjpcKWgOGCOVvncmFI79d">🐷</span><span class="st" data-page-node-id="ZiW3B4gBL4ecXbOBmUxiiQ">营业中</span></div>
+      </div>
+      <div class="catalog" data-page-node-id="su6vFAmy9Smxta0g2oqmEW">
+        <div class="cate-menu" data-page-node-id="wnx5K7uN3DBB0ML27n31Tn">
+          <div class="cate-item active" data-page-node-id="Dhhs7KS2izrQ2U17PJp2mC">全部</div>
+          <div class="cate-item" data-page-node-id="L7BmXe4fJcnfQxWXbyJ0Gy">招牌菜</div>
+          <div class="cate-item" data-page-node-id="azjtI1EJFhOm8pzobH9BVW">家常小炒</div>
+          <div class="cate-item" data-page-node-id="7ws4NDQY6AZneDwHvnfOaA">汤羹</div>
+          <div class="cate-item" data-page-node-id="AtFND3uDN1tenIjrX54KD6">主食</div>
+          <div class="cate-item" data-page-node-id="kQ0WSMRxFMbHArkXYrAiLB">甜品</div>
+        </div>
+        <div class="dish-pane" data-page-node-id="WC0fF5xEiGjpAXicRRLvVb">
+          <div class="group-header" data-page-node-id="A6Hop0K2vAY9ytwbk5Ql8x">
+            <span class="group-name" data-page-node-id="UF73TPAMdVcpPtQkShZPBR">招牌菜</span><span class="group-line" data-page-node-id="FsiDyF28RgONnoFe3FySIp"></span><span class="group-count" data-page-node-id="rnLtFDa7ksa43aUDju92jh">3 道</span>
+          </div>
+          <div class="dish-card" data-page-node-id="EWGYWMj2mh9T0KVF2i0src">
+            <div class="dish-img" data-page-node-id="8U946xteY8qZxiIuzGezcx">🍖</div>
+            <div class="dish-info" data-page-node-id="4vJa7oXUu2WXs9FjfYzmJW">
+              <div data-page-node-id="DNXsN7xbAdblE8DFuRfroD">
+                <div class="dish-name" data-page-node-id="srJnR6VcD9hpKkoWBlLrcn">秘制红烧肉</div>
+                <div class="order-count" data-page-node-id="gxwq5OvabwFuH2Yobu1OFJ">已点 12 次</div>
+                <div class="stars" data-page-node-id="yb7QkwF64uO92YyqfPqVBO">★★★★★</div>
+              </div>
+              <div class="dish-bottom" data-page-node-id="9XFHA7U30iuLsdYwmslCOF"><span class="step-num" data-page-node-id="zf6dDLwIELH6G2TUbWQPQR">1</span><span class="step-btn" data-page-node-id="XHgbM4RmLmv9Ge0WCGAyER">−</span><span class="step-btn add" data-page-node-id="ZSfL0JFzPhQdptpCTxaaHd">+</span></div>
+            </div>
+          </div>
+          <div class="dish-card" data-page-node-id="W9MwZ42exiMu2BpNS8cDAx">
+            <div class="dish-img" data-page-node-id="xFYeaLLSJLaqC54OQuFKz5">🥟</div>
+            <div class="dish-info" data-page-node-id="Dju72L8KAKgccSZWOPj132">
+              <div data-page-node-id="TVQgco5dIpkVDqXXMjWoka">
+                <div class="dish-name" data-page-node-id="yMrkl1H7fU0tDjSoVPsqCT">手工水饺</div>
+                <div class="order-count" data-page-node-id="BDco6nv4g5nBgDlobd5woR">已点 8 次</div>
+                <div class="stars" data-page-node-id="rvFsiQYkqQkWnXDeEmDtPn">★★★★☆</div>
+              </div>
+              <div class="dish-bottom" data-page-node-id="WoxJVEscmZuYJa5nJ5d5Vi"><span class="step-btn add" data-page-node-id="ksOuPAcuoqMYT6hQb6EVmw">+</span></div>
+            </div>
+          </div>
+          <div class="dish-card" data-page-node-id="EGc7wWsANaomKrsAs7hDYc">
+            <div class="dish-img" data-page-node-id="66QJ9cL4Cbql6ojhEAJFgj">🍲</div>
+            <div class="dish-info" data-page-node-id="qOxjC3Ny0aF2K6ApZ4rGJ9">
+              <div data-page-node-id="esa8tIZl3zPm6HRsHWcFy0">
+                <div class="dish-name" data-page-node-id="9KreEEXhBSHtei7cQMZl03">砂锅豆腐</div>
+                <div class="order-count" data-page-node-id="67yC5xAVJOiGD08kChtNhM">已点 5 次</div>
+                <div class="stars" data-page-node-id="pvElg68sTkQWtuwY3n2e2C">★★★★★</div>
+              </div>
+              <div class="dish-bottom" data-page-node-id="F17vufEYKByW2uu7yq4Vju"><span class="step-btn add" data-page-node-id="kfxFA9vUPvNw7Gbh01iZDx">+</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cart-bar" data-page-node-id="Df01TSmhHUE6QJBzjIp5cf">
+        <div class="cart-icon-wrap" data-page-node-id="RGt8OI0egt4FeAJGCj1bGe">
+          <div class="cart-plate" data-page-node-id="SGaoru7QfK5pQajhodsH9l"><span data-page-node-id="remjwtkSv7aqQ8OtsmYB3h">🛒</span></div>
+          <div class="cart-badge" data-page-node-id="UiTv1SV7wNIyAkzrjSDp6F">1</div>
+        </div>
+        <div class="cart-total" data-page-node-id="Xxs7chNpP9ffG2Kpyjx4bj">已选<b data-page-node-id="lAgMmjlxZQ9G83FSTPaTqc">1 份</b></div>
+        <div class="cart-cta" data-page-node-id="7CDKtOVUGAPnGtPijcPmm6">去下单</div>
+      </div>
+    </div>
+    <div class="notes" data-page-node-id="gwITzCZh8kG1bRBxMbGG09">
+      <b data-page-node-id="M4g2JTkROHfESMTBimklTm">营业印章</b>入场时"盖"下来（弹性缩放）· <b data-page-node-id="tn6y85JfgzqZkeUsFbZTYM">价签分组头</b>（圆标+虚线）·
+      <b data-page-node-id="b5V1xfU9w3QbhDmpivjF3I">器皿卡片</b>左下角收紧 · 菜品图白描边像盘子 · <b data-page-node-id="xZVxxKyH6D995TvNyrIq0P">悬浮胶囊购物车条</b>替代通栏白条 · 徽章棕底奶字对比度 7:1
+    </div>
+  </div>
+
+  <!-- ============ 屏 2：订单页 ============ -->
+  <div class="phone-unit" data-page-node-id="C5ifFKAx5dB3fGjBTgzbLd">
+    <div class="phone-label" data-page-node-id="TeLLiIdCqyFgxiDcvIPWvS">② 订单页</div>
+    <div class="phone" data-page-node-id="ht2fo6s0CjuUMK5v75oCDH">
+      <div class="banner" data-page-node-id="4FRRhPnSbSrVQYz7GcMKZy">
+        <div class="brand-left" data-page-node-id="WGYTE0BsJTLGoghBCWstxe">
+          <div class="brand-logo" data-page-node-id="PGIx9Mr2e8WAKZeYX0WIk6">🐷</div>
+          <div data-page-node-id="2b4PoeD5OUZfXqO9PTf8Lt">
+            <div class="brand-title" data-page-node-id="GIARC0YOVyVK0pg7eOybKT">订单小记</div>
+            <div class="brand-sub" data-page-node-id="owg4sLuqfpntojY0BdvDnD">每一单，都是日常</div>
+          </div>
+        </div>
+        <div class="stamp" data-page-node-id="lWuA6LNF59guf39i3lXnIA"><span class="si" data-page-node-id="S1JmxtIf7moEIJnGRum20b">🧾</span><span class="st" data-page-node-id="lOH5PPy7hltMwOGgzmBAeM">小账本</span></div>
+      </div>
+      <div class="filter-bar" data-page-node-id="8mN1ctcNn4JLTWpfBee1hZ">
+        <span class="chip active" data-page-node-id="AnevbLZx6U9Ohu4CxnfPEQ">我下单的</span>
+        <span class="chip plain" data-page-node-id="B30gvFnmaDJnCscuxGFFxi">日期范围 ▾</span>
+      </div>
+      <div class="summary-row" data-page-node-id="pJCtGuSHHAx5MOVLT0IAXj">
+        <span class="summary-text" data-page-node-id="2dNmMyKbQG5ykFchHyEOBd">我下单的 · 共 <b data-page-node-id="Tqggu0up2CPPWHH7qAcGcO">3</b> 单</span>
+        <div class="tab-group" data-page-node-id="Kr38DDAZKC4qE6X04vS3X5"><span class="tab-pill active" data-page-node-id="1VixjBrkeknVollbEOaMx4">订单</span><span class="tab-pill" data-page-node-id="t6sE4D13qkzSl9d0X2uTnA">美食日记</span></div>
+      </div>
+      <div class="tab-divider" data-page-node-id="XPaBUw4SRf1yxigTjhF7Bf">
+        <div class="order-card" data-page-node-id="BvusFazNw39sjQOGqnQ3Gf">
+          <div class="order-head" data-page-node-id="ZifzPRsXELgDQ6sEUJIPA3"><span class="order-dot" data-page-node-id="SluFnOBetHRcBAamKlAxiC"></span><span class="order-time" data-page-node-id="pqDqrsCENQOSDbIo8aw720">今天 12:30</span></div>
+          <div class="order-items" data-page-node-id="QUAijhFFm2upBqbJdfzlcG">秘制红烧肉 ×1 · 手工水饺 ×2</div>
+          <div class="order-remark" data-page-node-id="zHuUkgXKmedFEWlwDN3q5Y">备注：饺子不要香菜</div>
+        </div>
+        <div class="order-card" data-page-node-id="p2sqndrL8RTkcCXmn4wrPc">
+          <div class="order-head" data-page-node-id="Xitjdcsrs8AoyfqUBVhr34"><span class="order-dot" data-page-node-id="QP1WgrCbF03h7fQCA3Qnmb"></span><span class="order-time" data-page-node-id="2pCNQz9OSofaCnaF4z0U0k">昨天 18:02</span><span class="order-nickname" data-page-node-id="pfDvXaobzq2oShxt57MzOU">老王</span></div>
+          <div class="order-items" data-page-node-id="CJkmo8iqjKTxG3nO3YCbcA">砂锅豆腐 ×1 · 米饭 ×2</div>
+        </div>
+        <h4 data-page-node-id="skCzO4zADs9M6AEPj63cIa">—— 美食日记 ——</h4>
+        <div class="diary" data-page-node-id="nXtIiRteQKm6hrv1AlyZIB">
+          <div class="diary-card" data-page-node-id="BaOsjJYpMfGCx8m590BNz7">
+            <div class="diary-tape" data-page-node-id="v6kzZ9yo5i404bwJe5DlxT"></div>
+            <div class="diary-time" data-page-node-id="DhYgYVa2fYxnZDY12fMBI3">今天 12:30</div>
+            <div class="diary-items" data-page-node-id="JxFb2UcaOtRCSDuXvY9JRg">秘制红烧肉 ×1 · 手工水饺 ×2</div>
+            <div class="diary-remark" data-page-node-id="82yBsAmadZEsJEZZUUZcke">「饺子不要香菜」</div>
+          </div>
+          <div class="diary-card" data-page-node-id="dEkOIEtU6XT2NGfNWH8FTe">
+            <div class="diary-tape" data-page-node-id="67kUOPFIvGqJOezhCXJfxy"></div>
+            <div class="diary-time" data-page-node-id="UkBYifJGUc0wDD5TA1aZFC">9月8日 18:02</div>
+            <div class="diary-items" data-page-node-id="jxhE6jcSpvJStTh4RAskZ4">砂锅豆腐 ×1 · 米饭 ×2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes" data-page-node-id="BKIg8BcyTSFldgoH3jfDE9">
+      <b data-page-node-id="UN5v0e8eLUViE249gOR3r4">小账本印章</b>呼应首页 · 订单卡右上角收紧+<b data-page-node-id="FIvh8xUEKZQpEIeOadAR5R">时间线圆点</b> ·
+      美食日记升级为<b data-page-node-id="w3cJ19yU8hRxUX55s3YjPi">纸胶带手账卡</b>（斜贴胶带+虚线纸边）· 筛选 chip 激活态渐变+暖阴影
+    </div>
+  </div>
+
+  <!-- ============ 屏 3：我的页 ============ -->
+  <div class="phone-unit" data-page-node-id="xYup2z444sOw8Q1Kj7AmKm">
+    <div class="phone-label" data-page-node-id="p8MJgo5QoUUMUfaFV2tBDv">③ 我的页</div>
+    <div class="phone" data-page-node-id="o3gL4t1gPgKU1jozUAQN1u">
+      <div class="profile-card" data-page-node-id="LMHXLJ3lHhoPRaZyDJfSXa">
+        <div class="avatar-col" data-page-node-id="9iEwoKLbhJvJgezWUH8AAb">
+          <div class="avatar" data-page-node-id="xAYLb0L8hDABgiw6sy1iHh">🐷</div>
+          <div class="avatar-edit" data-page-node-id="AHqTgTQvzLI9wEQN0Omh4o">修改头像</div>
+        </div>
+        <div class="profile-info" data-page-node-id="qB5eUlOriyyYr7JHaRyItu">
+          <div class="nickname" data-page-node-id="Huk2zA20Y0MuR3OH6lAznQ">呼噜掌柜</div>
+          <span class="role-tag" data-page-node-id="OgbWjn5uednckpkQ6npf3y">店主</span>
+        </div>
+      </div>
+      <div class="card" data-page-node-id="f8irZfMCdQqyi3EcHgo7UM">
+        <div class="section-title" data-page-node-id="nt11ep144FIP9fd6GsGSX6">店铺管理</div>
+        <div class="admin-grid" data-page-node-id="74FvyPsl37aFkMChMV5GFI">
+          <div class="admin-item" data-page-node-id="D2e2S31BtYKmFJ90doDX2v"><div class="admin-icon-box" data-page-node-id="IwFvoGkRWYGZVLiIG6X8SJ">🍲</div><span class="admin-name" data-page-node-id="VP5ASkVts854XQdEajhkdq">菜品管理</span></div>
+          <div class="admin-item" data-page-node-id="ufJuez2hkhOVV5Q3NOil9N"><div class="admin-icon-box" data-page-node-id="prAD8olE4lNEQqPx5vaIbS">🗂️</div><span class="admin-name" data-page-node-id="nE8RHPW4oQy1c4ef5ooQvt">分类管理</span></div>
+          <div class="admin-item" data-page-node-id="TL7AJiz90ApqmgAcb4D9IP"><div class="admin-icon-box" data-page-node-id="HbmkAWkFVgFD1tF7G5OmKu">📦</div><span class="admin-name" data-page-node-id="uPEKRUsfe9hBDG8KzvcFjU">订单管理</span></div>
+          <div class="admin-item" data-page-node-id="O4XccCFIeGvfGhuCQsvyKH"><div class="admin-icon-box" data-page-node-id="k4aZ2BHLjh7DwdaTlFcrbj">📊</div><span class="admin-name" data-page-node-id="gcUDxhkPKju0ZeCFTU40yi">点餐统计</span></div>
+          <div class="admin-item" data-page-node-id="4EwbZj195RXaOpuieVHHlw"><div class="admin-icon-box" data-page-node-id="cKvy98Rz6AsFcuauA4yb3a">👥</div><span class="admin-name" data-page-node-id="go97E4ISRef7fOSU3MxuAQ">邀请好友</span></div>
+        </div>
+      </div>
+      <div class="card heat" data-page-node-id="zInT1S5gY6TB1Xe7MAmsH0">
+        <div class="heat-header" data-page-node-id="s3yI0UCYnxGy2AUeOCtHHP">
+          <div class="section-title" data-page-node-id="RKBEzJwEP9sHU8AeDQ2QOw">订单动态墙</div>
+          <div class="heat-help" data-page-node-id="ckGmgz809fegc7C2G7hs5Y">?</div>
+        </div>
+        <div class="heat-grid" data-page-node-id="nXVueibGrU6FvHBtyt1YnP">
+          <div class="heat-col" data-page-node-id="VDv1JbUpVQ2W7e7g1ovqWE"><div class="heat-day" data-page-node-id="U3AcmTRUI11DWy69R4WYLE"></div><div class="heat-day heat-l1" data-page-node-id="ljg8IwsESO4qppjWCSvW04"></div><div class="heat-day" data-page-node-id="lCtTTlP2IZ8N5eJCL7ZB1A"></div><div class="heat-day heat-l2" data-page-node-id="Shql5Qq23brKhzlMF9bkEa"></div><div class="heat-day" data-page-node-id="zlBhwUehM1YXQQOAQfJT9N"></div></div>
+          <div class="heat-col" data-page-node-id="d5iB23Ul8OjFC7cROgzfcy"><div class="heat-day heat-l1" data-page-node-id="cKRK2NHmhLyEGaVrIC3kH0"></div><div class="heat-day heat-l2" data-page-node-id="oG7QNhLXtgD8jaO1tL1GXm"></div><div class="heat-day heat-l1" data-page-node-id="v3N7wP1I9as8uPwKDJHWpd"></div><div class="heat-day" data-page-node-id="3D7Ynqtow5PkCrtoc9CGh7"></div><div class="heat-day heat-l1" data-page-node-id="LuQNXs2laJF54W7QUoY1dC"></div></div>
+          <div class="heat-col" data-page-node-id="BWXxhRC0D7BYg8LCLVGG8F"><div class="heat-day heat-l3" data-page-node-id="RmB7SGCrlXq1uWTGMalS3m"></div><div class="heat-day heat-l1" data-page-node-id="baMbx6y3gfIV30kE1p1DjP"></div><div class="heat-day heat-l2" data-page-node-id="Hz1O4nWbu92MLO1CDHevGi"></div><div class="heat-day heat-l1" data-page-node-id="MyEZGG3IoqZOLZKeeDorSI"></div><div class="heat-day" data-page-node-id="dU8TpAVxV8aPwkY7sXUsIO"></div></div>
+          <div class="heat-col" data-page-node-id="TYMlZBvFpfiuDozWxfnw61"><div class="heat-day heat-l2" data-page-node-id="WU5tacCF1NIWjjL5PA0oCZ"></div><div class="heat-day heat-l4" data-page-node-id="uAqrojwzlH8LZnOrddJmFb"></div><div class="heat-day heat-l3" data-page-node-id="Fnl6w6xZ6fGv9gEeaTWcVC"></div><div class="heat-day heat-l2" data-page-node-id="UEmxReFfb4v1rxy6NPpFdB"></div><div class="heat-day heat-l1" data-page-node-id="7WY86iKYGME0XUISRVShRK"></div></div>
+          <div class="heat-col" data-page-node-id="pGRonmgKgNcAMBE9E0pYqR"><div class="heat-day heat-l1" data-page-node-id="A9vnLj6Rkvu4m80SrdEH7c"></div><div class="heat-day" data-page-node-id="o3BNASaJtoJ9QoKATvC6me"></div><div class="heat-day heat-l1" data-page-node-id="d2Q0eq5N0A6oifHQ1QPcog"></div><div class="heat-day heat-l3" data-page-node-id="JLeIZ9GLBuyD9uifIqryps"></div><div class="heat-day heat-l2" data-page-node-id="13DZrFPyNCOnA0tScZ778b"></div></div>
+          <div class="heat-col" data-page-node-id="Wx7D6nXqAuUom3zL2izSPC"><div class="heat-day" data-page-node-id="xUeFDYJJhe8Bz7Py8FGLF2"></div><div class="heat-day heat-l1" data-page-node-id="nA4eeDOpEkDcYth9MUxqeF"></div><div class="heat-day" data-page-node-id="tAWTx0AmRdj957FmGOrYkF"></div><div class="heat-day heat-l2" data-page-node-id="cMsLvtFZExspcuy5aAGM5u"></div><div class="heat-day heat-l1" data-page-node-id="BXU5KSdrC9R6Ymf0SIiJq9"></div></div>
+          <div class="heat-col" data-page-node-id="66YsT87q7paTzEUlNx0kwd"><div class="heat-day heat-l2" data-page-node-id="xYDqhwmd9aRxErGKUK8xn8"></div><div class="heat-day heat-l3" data-page-node-id="HJ6Ld3rNEjhHS4qESYPHKi"></div><div class="heat-day heat-l1" data-page-node-id="wukJ6bEtvYkRVNChTSKk3Z"></div><div class="heat-day" data-page-node-id="RQlaLJs5Mcd0kSXG0jsIKz"></div><div class="heat-day" data-page-node-id="uutVeIk7HZ9OLGDqTR50HJ"></div></div>
+          <div class="heat-col" data-page-node-id="ZEGht2UCfUKjf4yoYXlaVk"><div class="heat-day heat-l1" data-page-node-id="I9rL04GvxgIWowzKd5Hkvt"></div><div class="heat-day" data-page-node-id="wbdseaCvJwEmtYFBsIFkGB"></div><div class="heat-day heat-l2" data-page-node-id="cg5MYkv4UExMhwEnYxyI5Z"></div><div class="heat-day heat-l1" data-page-node-id="3kSjorPkrA0wO97oOES8TW"></div><div class="heat-day heat-l3" data-page-node-id="PryPAgrmhmADgPKDTzlQGP"></div></div>
+          <div class="heat-col" data-page-node-id="yPiTd2bbyhoFMUT91amRRc"><div class="heat-day" data-page-node-id="EWA6ioRmQ7MXvpA8ubXXvC"></div><div class="heat-day heat-l1" data-page-node-id="vrQqbYfA1zNxFkAhbj4GXy"></div><div class="heat-day" data-page-node-id="X96J9Syp4raBITlLFAq8xf"></div><div class="heat-day heat-l2" data-page-node-id="gFfDryaXhEkDyWiXheDciS"></div><div class="heat-day" data-page-node-id="TpbFZ4rS4FQO5qb2hlIQ0m"></div></div>
+          <div class="heat-col" data-page-node-id="pG2SCeCgAxZWKGhpjru3Qw"><div class="heat-day heat-l1" data-page-node-id="yyYoFfLhE6tpSBFuCYJDKB"></div><div class="heat-day heat-l2" data-page-node-id="XBuB9g42YAvDqzdW7ZnGB8"></div><div class="heat-day heat-l1" data-page-node-id="wJ3EAheNb1zTWG1OVqMBLj"></div><div class="heat-day" data-page-node-id="L86klJcc4daSGM6YtwC509"></div><div class="heat-day heat-l1" data-page-node-id="n2vaFhHBGvcppWWnukphbM"></div></div>
+        </div>
+      </div>
+      <div class="footer-tip" data-page-node-id="lzDKxcvKJIo6ObFVNGpJin">本小程序仅供我和朋友之间点餐使用</div>
+    </div>
+    <div class="notes" data-page-node-id="bhkPoaZX2tGpZtMFAlQP7B">
+      头像<b data-page-node-id="2jQCNsjnA61TyFTwbCkp0Y">贴纸感</b>（白描边+微旋转）· 角色标签升级<b data-page-node-id="xFGGajepghHxDNPH4EkGAG">印章样式</b>（虚线圆框+歪斜）·
+      管理九宫格变<b data-page-node-id="QeVSmtLbfcGpVn2mZyi3Eo">贴纸墙</b>（图标盒交错旋转）· 区块标题加琥珀小竖条 · 卡片器皿圆角
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

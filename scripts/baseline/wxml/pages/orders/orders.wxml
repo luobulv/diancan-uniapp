@@ -1,0 +1,139 @@
+<view class="page">
+  <!-- 非店主：显示品牌 banner -->
+  <view wx:if="{{!isOwner}}" class="brand-banner">
+    <view class="brand-left">
+      <image class="brand-logo" src="/images/app-logo.jpg" mode="aspectFit" />
+      <view class="brand-text">
+        <view class="brand-title">订单小记</view>
+        <view class="brand-sub">每一单，都是日常</view>
+      </view>
+    </view>
+    <!-- 小账本印章 -->
+    <view class="brand-stamp">
+      <text class="stamp-icon">🧾</text>
+      <text class="stamp-text">小账本</text>
+    </view>
+  </view>
+
+  <!-- 店主：新订单提醒（替代原 banner，放最顶部；店主可点开启补一次订阅授权） -->
+  <view wx:if="{{isOwner}}" class="remind-card" hover-class="cate-press" hover-stay-time="100" bindtap="resubscribe">
+    <view class="remind-left">
+      <view class="remind-title-row">
+        <text class="remind-icon">🔔</text>
+        <text class="remind-title">新订单提醒</text>
+      </view>
+      <text class="remind-desc">朋友下单后，你的微信会收到服务通知</text>
+    </view>
+    <view class="remind-btn">开启提醒</view>
+  </view>
+
+  <!-- 筛选 chip 行 -->
+  <view class="filter-bar">
+    <view class="chip filter-chip {{filter === 'mine' ? 'active' : ''}}" hover-class="chip-press" hover-stay-time="80" bindtap="switchFilter" data-key="mine">
+      <text>我下单的</text>
+    </view>
+    <view wx:if="{{isOwner}}" class="chip filter-chip {{filter === 'all' ? 'active' : ''}}" hover-class="chip-press" hover-stay-time="80" bindtap="switchFilter" data-key="all">
+      <text>全部</text>
+    </view>
+    <view class="chip date-chip" hover-class="chip-press" hover-stay-time="80" bindtap="openDateRangePopup">
+      <text class="date-chip-text">{{dateRangeText || '日期范围'}}</text>
+      <text class="chip-arrow">▾</text>
+    </view>
+    <view wx:if="{{dateStart || dateEnd}}" class="chip clear-chip" hover-class="chip-press" hover-stay-time="80" bindtap="clearDate">
+      <text>清除</text>
+    </view>
+  </view>
+
+  <!-- 统计 + Tab 切换 -->
+  <view class="summary-row">
+    <view class="summary-text">{{filter === 'mine' ? '我下单的' : '全部订单'}} · 共 <text class="summary-num">{{summary}}</text> 单</view>
+    <view class="tab-group">
+      <view
+        class="tab-pill {{activeTab === 'orders' ? 'active' : ''}}"
+        data-key="orders"
+        hover-class="chip-press"
+        hover-stay-time="80"
+        bindtap="switchTab"
+      >订单</view>
+      <view
+        class="tab-pill {{activeTab === 'diary' ? 'active' : ''}}"
+        data-key="diary"
+        hover-class="chip-press"
+        hover-stay-time="80"
+        bindtap="switchTab"
+      >美食日记</view>
+    </view>
+  </view>
+
+  <!-- 内容区 -->
+  <block wx:if="{{orders.length > 0}}">
+    <view wx:if="{{activeTab === 'orders'}}">
+      <view class="order-card" wx:for="{{orders}}" wx:key="_id">
+        <view class="order-head">
+          <view class="order-head-left">
+            <view class="order-dot"></view>
+            <text class="order-time">{{item.timeText}}</text>
+            <text wx:if="{{filter === 'all' && item.nickname}}" class="order-nickname">{{item.nickname}}</text>
+          </view>
+        </view>
+        <view class="order-items">{{item.itemsText}}</view>
+        <view class="order-foot" wx:if="{{item.remark}}">
+          <text class="order-remark">备注：{{item.remark}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{activeTab === 'diary'}}" class="diary">
+      <view class="diary-card" wx:for="{{orders}}" wx:key="_id">
+        <view class="diary-tape"></view>
+        <view class="diary-time">{{item.timeText}}</view>
+        <view class="diary-items">{{item.itemsText}}</view>
+        <view class="diary-remark" wx:if="{{item.remark}}">「{{item.remark}}」</view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:elif="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else class="empty">
+    <image class="empty-emoji" src="/images/app-logo.jpg" mode="aspectFit" />
+    <text class="empty-text">还没有订单哦</text>
+  </view>
+
+  <!-- 日期范围弹窗 -->
+  <view wx:if="{{showDateRangePopup}}" class="date-mask" bindtap="closeDateRangePopup">
+    <view class="date-dialog" catchtap="preventTouchMove">
+      <view class="date-title">选择日期范围</view>
+
+      <view class="date-quick-row">
+        <view class="date-quick" data-range="all" hover-class="chip-press" hover-stay-time="80" bindtap="pickDateQuick">全部</view>
+        <view class="date-quick" data-range="week" hover-class="chip-press" hover-stay-time="80" bindtap="pickDateQuick">近一周</view>
+        <view class="date-quick" data-range="month" hover-class="chip-press" hover-stay-time="80" bindtap="pickDateQuick">近一月</view>
+      </view>
+
+      <view class="date-pickers">
+        <picker mode="date" value="{{dateStart}}" bindchange="pickDateStart">
+          <view class="date-picker-cell">
+            <text class="date-picker-label">开始日期</text>
+            <text class="date-picker-value {{dateStart ? '' : 'placeholder'}}">{{dateStart || '不限'}}</text>
+          </view>
+        </picker>
+        <text class="date-sep">→</text>
+        <picker mode="date" value="{{dateEnd}}" bindchange="pickDateEnd">
+          <view class="date-picker-cell">
+            <text class="date-picker-label">结束日期</text>
+            <text class="date-picker-value {{dateEnd ? '' : 'placeholder'}}">{{dateEnd || '不限'}}</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="date-actions">
+        <view class="date-btn cancel" hover-class="text-press" hover-stay-time="80" bindtap="closeDateRangePopup">取消</view>
+        <view class="date-btn ok" hover-class="cta-press" hover-stay-time="80" bindtap="confirmDateRange">确认</view>
+      </view>
+    </view>
+  </view>
+</view>

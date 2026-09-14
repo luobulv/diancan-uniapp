@@ -1,0 +1,41 @@
+<view class="page">
+  <view class="cate-card" wx:for="{{categories}}" wx:key="_id">
+    <view class="cate-info">
+      <text class="cate-name">{{item.name}}</text>
+      <text class="cate-count">{{item.count}} 个菜品</text>
+    </view>
+    <view class="cate-ops">
+      <text class="op" data-id="{{item._id}}" bindtap="openEdit">编辑</text>
+      <text class="op danger" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="remove">删除</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:if="{{categories.length === 0 && !loading}}" class="empty">
+    <text class="icon">🗂️</text>
+    还没有分类
+  </view>
+
+  <view class="fab" bindtap="openAdd">＋ 添加分类</view>
+
+  <!-- 表单弹窗 -->
+  <view wx:if="{{showForm}}" class="mask" bindtap="closeForm">
+    <view class="form-panel" catchtap="preventTouchMove">
+      <view class="form-header">
+        <text class="form-title">{{editingId ? '编辑分类' : '添加分类'}}</text>
+        <text class="form-close" bindtap="closeForm">✕</text>
+      </view>
+      <view class="form-body">
+        <input class="input" placeholder="分类名，如：热菜、凉菜、主食" value="{{name}}" bindinput="onNameInput" focus />
+      </view>
+      <view class="form-footer">
+        <view class="btn-cancel" bindtap="closeForm">取消</view>
+        <view class="btn-save" bindtap="save">保存</view>
+      </view>
+    </view>
+  </view>
+</view>

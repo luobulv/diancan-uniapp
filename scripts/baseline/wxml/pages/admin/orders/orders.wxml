@@ -1,0 +1,45 @@
+<view class="page">
+  <!-- 筛选 -->
+  <view class="filter-bar">
+    <view
+      wx:for="{{filters}}"
+      wx:key="key"
+      class="filter-item {{filter === item.key ? 'active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="switchFilter"
+    >{{item.text}}</view>
+  </view>
+
+  <block wx:if="{{orders.length > 0}}">
+    <view class="order-card" wx:for="{{orders}}" wx:key="_id">
+      <view class="order-head">
+        <view class="order-user">
+          <image wx:if="{{item.avatarUrl}}" class="user-avatar" src="{{item.avatarUrl}}" mode="aspectFill" />
+          <text class="user-name">{{item.nickname}}</text>
+        </view>
+        <text class="order-time">{{item.timeText}}</text>
+      </view>
+      <view class="order-items">{{item.itemsText}}</view>
+      <view wx:if="{{item.remark}}" class="order-remark">备注：{{item.remark}}</view>
+      <view class="order-foot">
+        <view class="order-actions">
+          <block wx:if="{{item.status === 'pending'}}">
+            <view class="act done" data-id="{{item._id}}" data-status="completed" bindtap="changeStatus">完成</view>
+            <view class="act cancel" data-id="{{item._id}}" data-status="cancelled" bindtap="changeStatus">取消</view>
+          </block>
+          <text wx:else class="status-text">{{item.status === 'completed' ? '已完成' : '已取消'}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:elif="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else class="empty">
+    <text class="icon">📦</text>
+    暂无订单
+  </view>
+</view>

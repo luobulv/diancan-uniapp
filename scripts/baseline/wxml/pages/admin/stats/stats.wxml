@@ -1,0 +1,45 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <block wx:else>
+  <!-- 概览 -->
+  <view class="overview">
+    <view class="ov-card">
+      <text class="ov-num">{{totalOrders}}</text>
+      <text class="ov-label">订单总数</text>
+    </view>
+    <view class="ov-card">
+      <text class="ov-num">{{totalCount}}</text>
+      <text class="ov-label">累计点餐次数</text>
+    </view>
+    <view class="ov-card">
+      <text class="ov-num">{{totalFriends}}</text>
+      <text class="ov-label">点餐成员</text>
+    </view>
+  </view>
+
+  <!-- 菜品点餐次数排行 -->
+  <view class="card">
+    <view class="section-title">菜品点餐次数排行</view>
+    <block wx:if="{{dishes.length > 0}}">
+      <view class="rank-item" wx:for="{{dishes}}" wx:key="_id">
+        <view class="rank-top">
+          <text class="rank-index {{index < 3 ? 'top' : ''}}">{{index + 1}}</text>
+          <text class="rank-name">{{item.name}}</text>
+          <text class="rank-count">{{item.orderCount}} 次</text>
+        </view>
+        <view class="rank-bar-bg">
+          <view class="rank-bar" style="width: {{item.barWidth}}%;"></view>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="empty">
+      <text class="icon">📊</text>
+      暂无数据
+    </view>
+  </view>
+  </block>
+</view>

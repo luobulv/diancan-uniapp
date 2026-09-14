@@ -1,0 +1,9 @@
+{
+  "desc": "熟人点餐小程序，不需要被微信搜一搜索引 —— 全部页面 disallow，避免陌生人搜到「呼噜点餐」并进入访客态。文档：https://developers.weixin.qq.com/miniprogram/dev/framework/sitemap.html",
+  "rules": [
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}

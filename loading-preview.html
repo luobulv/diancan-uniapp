@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>点餐页加载态预览 · 呼噜点餐</title>
+<style>
+  /* 说明：这个文件只是预览稿，不参与小程序构建，可随时删除。
+     数值从 src/pages/index/index.vue 的加载态样式按 1rpx = 0.5px 换算而来。 */
+  :root {
+    --cream: #FFF8E7;
+    --cream-deep: #FBF0D2;
+    --paper: #FFFDF6;
+    --yellow: #F7C948;
+    --yellow-mist: #FBEEC9;
+    --amber: #F5A623;
+    --caramel: #D9822B;
+    --brown: #6B4423;
+    --ink: #4A2F18;
+    --tan: #8B5A2B;
+    --line: #F1E3BC;
+    --shadow-sm: 0 2rpx 8rpx rgba(180, 120, 50, 0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 24px 56px;
+    background: #F6F3EC;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+  }
+  h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: 1px; }
+  .lead { margin: 0 0 24px; font-size: 13px; color: #7a6a58; line-height: 1.7; max-width: 720px; }
+  .lead code { background: #fff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+
+  .phone {
+    width: 375px;
+    height: 640px;
+    border-radius: 26px;
+    overflow: hidden;
+    background: var(--cream);
+    background-image: radial-gradient(rgba(245, 166, 35, 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 18px 48px rgba(107, 68, 35, 0.16);
+    border: 1px solid rgba(241, 227, 188, 0.9);
+  }
+  .phone + .phone { }
+
+  /* ---- 顶部品牌 banner（与线上一致，仅作背景参考） ---- */
+  .banner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 15px 16px;
+    background: linear-gradient(135deg, #F7C948 0%, #F5A623 100%);
+    color: var(--brown);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .banner::before {
+    content: ""; position: absolute; right: -40px; top: -60px;
+    width: 160px; height: 160px; border-radius: 50%; background: rgba(255, 253, 246, 0.18);
+  }
+  .banner::after {
+    content: ""; position: absolute; left: -30px; bottom: -55px;
+    width: 120px; height: 120px; border-radius: 50%; background: rgba(107, 68, 35, 0.08);
+  }
+  .banner-left { display: flex; align-items: center; position: relative; z-index: 1; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 50%; background: #fff; margin-right: 10px;
+    border: 2px solid rgba(255, 253, 246, 0.7); box-shadow: 0 3px 8px rgba(107, 68, 35, 0.18);
+    transform: rotate(-6deg); display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .brand-title { font-size: 19px; font-weight: 800; letter-spacing: 1.5px; }
+  .brand-sub { font-size: 11px; color: rgba(74, 47, 24, 0.72); margin-top: 3px; }
+  .stamp {
+    position: relative; z-index: 1; width: 52px; height: 52px; border-radius: 50%;
+    border: 1.5px dashed rgba(255, 253, 246, 0.9); background: rgba(255, 253, 246, 0.28);
+    transform: rotate(8deg); display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .stamp .i { font-size: 19px; line-height: 1.1; }
+  .stamp .t { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--brown); }
+
+  /* ---- 双栏 ---- */
+  .catalog { flex: 1; display: flex; min-height: 0; }
+  .cate-menu { width: 92px; background: var(--yellow-mist); flex-shrink: 0; overflow: hidden; }
+  .cate-item { padding: 15px 6px; font-size: 13px; color: var(--tan); text-align: center; position: relative; }
+  .cate-item.active { background: var(--cream); color: var(--caramel); font-weight: 800; }
+  .cate-item.active::before {
+    content: ""; position: absolute; left: 0; top: 13px; bottom: 13px; width: 4px;
+    border-radius: 0 4px 4px 0; background: linear-gradient(180deg, var(--yellow), var(--amber));
+  }
+
+  .dish-pane { flex: 1; padding: 8px 0; overflow: hidden; }
+  .pad { padding: 0 10px; }
+
+  /* ---- 骨架块 ---- */
+  .sk { position: relative; overflow: hidden; background: var(--cream-deep); }
+  .sk::after {
+    content: ""; position: absolute; top: 0; left: 0; width: 60%; height: 100%;
+    background: linear-gradient(90deg, rgba(255, 253, 246, 0) 0%, rgba(255, 253, 246, 0.9) 50%, rgba(255, 253, 246, 0) 100%);
+    animation: sk-sweep 1.5s ease-in-out infinite;
+  }
+  @keyframes sk-sweep {
+    from { transform: translateX(-130%); }
+    to { transform: translateX(230%); }
+  }
+  @keyframes dot-bounce {
+    0%, 100% { transform: translateY(0); opacity: 0.45; }
+    50% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* ---- 上菜提示 ---- */
+  .loading-head { display: flex; align-items: center; padding: 9px 2px 12px; }
+  .loading-dots { display: flex; align-items: center; height: 8px; margin-right: 7px; }
+  .loading-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--amber); margin-right: 4px;
+    animation: dot-bounce 1.1s ease-in-out infinite;
+  }
+  .loading-dot:nth-child(2) { animation-delay: 140ms; }
+  .loading-dot:nth-child(3) { animation-delay: 280ms; margin-right: 0; }
+  .loading-text { font-size: 13px; font-weight: 700; color: var(--brown); letter-spacing: 0.5px; }
+
+  /* ---- 骨架卡片：几何对齐真实 .dish-card ---- */
+  .sk-card {
+    display: flex; background: var(--paper);
+    border-radius: 14px 14px 14px 5px;
+    padding: 10px; margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(180, 120, 50, 0.08);
+    border: 1px solid rgba(241, 227, 188, 0.6);
+  }
+  .sk-img { width: 90px; height: 90px; border-radius: 10px; flex-shrink: 0; }
+  .sk-info { flex: 1; margin-left: 10px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+  .sk-line { height: 13px; border-radius: 4px; }
+  .sk-line-name { width: 62%; }
+  .sk-line-sub { width: 38%; height: 11px; }
+  .sk-info-bottom { display: flex; justify-content: flex-end; }
+  .sk-btn { width: 28px; height: 28px; border-radius: 50%; }
+  .sk-card:nth-child(3) .sk::after { animation-delay: 100ms; }
+  .sk-card:nth-child(4) .sk::after { animation-delay: 200ms; }
+  .sk-card:nth-child(5) .sk::after { animation-delay: 300ms; }
+
+  /* ---- 左栏骨架行 ---- */
+  .cate-sk {
+    width: 48px; height: 17px; margin: 14px auto; border-radius: 4px;
+    background: rgba(217, 130, 43, 0.16);
+  }
+  .cate-sk::after { animation-duration: 1.8s; }
+  .cate-sk:nth-child(2)::after { animation-delay: 120ms; }
+  .cate-sk:nth-child(3)::after { animation-delay: 240ms; }
+  .cate-sk:nth-child(4)::after { animation-delay: 360ms; }
+
+  /* ---- 加载完成后的真实卡片（用于对比布局是否跳动） ---- */
+  .dish-card {
+    display: flex; background: var(--paper);
+    border-radius: 14px 14px 14px 5px;
+    padding: 10px; margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(180, 120, 50, 0.08);
+    border: 1px solid rgba(241, 227, 188, 0.6);
+  }
+  .dish-img {
+    width: 90px; height: 90px; border-radius: 10px; flex-shrink: 0;
+    background: var(--yellow-mist); border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 30px;
+  }
+  .dish-info { flex: 1; margin-left: 10px; display: flex; flex-direction: column; justify-content: space-between; }
+  .dish-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .order-count { font-size: 11px; color: var(--tan); margin-left: 6px; }
+  .stars { font-size: 13px; color: var(--amber); letter-spacing: 1px; }
+  .dish-bottom { display: flex; justify-content: flex-end; }
+  .step-btn {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #F7C948, #F5A623); color: var(--ink); font-weight: 700;
+    font-size: 18px; line-height: 1; box-shadow: 0 4px 12px rgba(245, 166, 35, 0.3);
+  }
+  .group-header { display: flex; align-items: center; padding: 9px 2px 7px; margin-bottom: 7px; }
+  .group-name { font-size: 14px; font-weight: 800; color: var(--brown); letter-spacing: 0.5px; display: flex; align-items: center; }
+  .group-name::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50% 50% 2px 50%;
+    background: var(--amber); margin-right: 6px; transform: rotate(45deg);
+  }
+  .group-line { flex: 1; margin: 0 8px; border-bottom: 1px dashed var(--line); }
+  .group-count { font-size: 11px; color: var(--tan); }
+
+  /* ---- 控制条 ---- */
+  .controls { display: flex; flex-direction: column; gap: 12px; width: 300px; }
+  button {
+    padding: 10px 16px; border-radius: 999px; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #F7C948, #F5A623); color: var(--ink);
+    font-size: 14px; font-weight: 800; letter-spacing: 1px;
+  }
+  button.ghost { background: #fff; color: var(--brown); border: 1px solid var(--line); font-weight: 700; }
+  .hint {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    font-size: 12px; line-height: 1.8; color: #6d5b46;
+  }
+  .hint b { color: var(--brown); }
+  .swatch { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #6d5b46; }
+  .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.06); }
+  .off { display: none !important; }
+</style>
+</head>
+<body>
+  <h1>点餐页 · 列表加载态</h1>
+  <p class="lead">
+    列表未到位时展示骨架卡片（几何与真实菜品卡片一致，数据到位不跳动）+「正在上菜…」三颗弹跳点。
+    左侧分类栏同步用骨架行占位。<code>1rpx = 0.5px</code> 换算，数值与 <code>src/pages/index/index.vue</code> 一致。
+  </p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="banner">
+        <div class="banner-left">
+          <div class="logo">🐷</div>
+          <div>
+            <div class="brand-title">呼噜点餐</div>
+            <div class="brand-sub">今日好好吃饭，明天好好生活</div>
+          </div>
+        </div>
+        <div class="stamp"><span class="i">🐷</span><span class="t">营业中</span></div>
+      </div>
+
+      <div class="catalog">
+        <div class="cate-menu">
+          <div class="cate-item active">全部</div>
+          <div id="cateSk">
+            <div class="cate-sk sk"></div>
+            <div class="cate-sk sk"></div>
+            <div class="cate-sk sk"></div>
+            <div class="cate-sk sk"></div>
+          </div>
+          <div id="cateReal" class="off">
+            <div class="cate-item">招牌热菜</div>
+            <div class="cate-item">清爽凉菜</div>
+            <div class="cate-item">汤羹</div>
+            <div class="cate-item">主食</div>
+          </div>
+        </div>
+
+        <div class="dish-pane">
+          <!-- 加载态 -->
+          <div class="pad" id="loadingPane">
+            <div class="loading-head">
+              <div class="loading-dots">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+              </div>
+              <div class="loading-text">正在上菜…</div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-img"></div>
+              <div class="sk-info">
+                <div class="sk sk-line sk-line-name"></div>
+                <div class="sk sk-line sk-line-sub"></div>
+                <div class="sk-info-bottom"><div class="sk sk-btn"></div></div>
+              </div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-img"></div>
+              <div class="sk-info">
+                <div class="sk sk-line sk-line-name"></div>
+                <div class="sk sk-line sk-line-sub"></div>
+                <div class="sk-info-bottom"><div class="sk sk-btn"></div></div>
+              </div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-img"></div>
+              <div class="sk-info">
+                <div class="sk sk-line sk-line-name"></div>
+                <div class="sk sk-line sk-line-sub"></div>
+                <div class="sk-info-bottom"><div class="sk sk-btn"></div></div>
+              </div>
+            </div>
+            <div class="sk-card">
+              <div class="sk sk-img"></div>
+              <div class="sk-info">
+                <div class="sk sk-line sk-line-name"></div>
+                <div class="sk sk-line sk-line-sub"></div>
+                <div class="sk-info-bottom"><div class="sk sk-btn"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 加载完成 -->
+          <div class="pad off" id="loadedPane">
+            <div class="group-header">
+              <div class="group-name">招牌热菜</div>
+              <div class="group-line"></div>
+              <div class="group-count">2 道</div>
+            </div>
+            <div class="dish-card">
+              <div class="dish-img">🍖</div>
+              <div class="dish-info">
+                <div><span class="dish-name">红烧排骨</span><span class="order-count">已点 12 次</span></div>
+                <div class="stars">★★★★★</div>
+                <div class="dish-bottom"><div class="step-btn">+</div></div>
+              </div>
+            </div>
+            <div class="dish-card">
+              <div class="dish-img">🍤</div>
+              <div class="dish-info">
+                <div><span class="dish-name">油焖大虾</span><span class="order-count">已点 8 次</span></div>
+                <div class="stars">★★★★☆</div>
+                <div class="dish-bottom"><div class="step-btn">+</div></div>
+              </div>
+            </div>
+            <div class="group-header">
+              <div class="group-name">清爽凉菜</div>
+              <div class="group-line"></div>
+              <div class="group-count">2 道</div>
+            </div>
+            <div class="dish-card">
+              <div class="dish-img">🥗</div>
+              <div class="dish-info">
+                <div><span class="dish-name">手撕包菜</span></div>
+                <div class="stars">★★★★☆</div>
+                <div class="dish-bottom"><div class="step-btn">+</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="toggle">切换到「加载完成」→</button>
+      <div class="hint">
+        <b>看点</b><br />
+        1. 骨架卡片与真实卡片的图片、行高、圆角完全一致，切换时列表<b>不跳动</b>。<br />
+        2. 四张卡片的扫光<b>依次亮起</b>（错峰 100ms），不是齐刷刷一起闪。<br />
+        3. 左侧分类栏用骨架行占位，避免从「全部」孤零零一项突然撑开。<br />
+        4. 扫光只动 <code>transform</code>，走合成层，不掉帧。
+      </div>
+      <div class="swatch"><span class="sw" style="background:#FBF0D2"></span>骨架底 --cream-deep</div>
+      <div class="swatch"><span class="sw" style="background:rgba(217,130,43,.16)"></span>左栏骨架 焦糖 16%</div>
+      <div class="swatch"><span class="sw" style="background:#F5A623"></span>弹跳点 --amber</div>
+    </div>
+  </div>
+
+<script>
+  const btn = document.getElementById('toggle');
+  const loadingPane = document.getElementById('loadingPane');
+  const loadedPane = document.getElementById('loadedPane');
+  const cateSk = document.getElementById('cateSk');
+  const cateReal = document.getElementById('cateReal');
+  let loading = true;
+
+  btn.addEventListener('click', () => {
+    loading = !loading;
+    loadingPane.classList.toggle('off', !loading);
+    loadedPane.classList.toggle('off', loading);
+    cateSk.classList.toggle('off', !loading);
+    cateReal.classList.toggle('off', loading);
+    btn.textContent = loading ? '切换到「加载完成」→' : '← 切回「加载中」';
+    // 重置扫光动画，每次切换都能从头看一遍
+    document.querySelectorAll('.sk').forEach((el) => {
+      const a = el.style.animation;
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.animation = a;
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <block wx:else>
+  <!-- 个人信息（贴纸卡片） -->
+  <view class="profile-card">
+    <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <image class="avatar" src="{{user.avatarUrl || '/images/avatar-default.png'}}" mode="aspectFill" />
+      <text class="avatar-edit">修改头像</text>
+    </button>
+    <view class="profile-info">
+      <input
+        class="nickname-input"
+        type="nickname"
+        placeholder="点击设置昵称"
+        placeholder-class="nickname-placeholder"
+        value="{{user.nickname}}"
+        bindinput="onNicknameInput"
+        bindblur="onNicknameBlur"
+      />
+      <text class="role-tag {{user.role}}">{{roleText}}</text>
+    </view>
+  </view>
+
+  <!-- 访客提示 -->
+  <view wx:if="{{user && user.role === 'guest'}}" class="guest-card">
+    <text>你是访客，接受店主邀请后即可点餐</text>
+    <view class="btn-primary invite-btn" bindtap="goInvite">接受邀请</view>
+  </view>
+
+  <!-- 非店主：点餐足迹卡（呼应店主的热力图） -->
+  <view wx:if="{{!isOwner && user.role !== 'guest'}}" class="footprint-card">
+    <view class="footprint-header">
+      <view class="section-title">我的点餐足迹</view>
+      <text class="footprint-tag">🍽️ 干饭人</text>
+    </view>
+    <view class="footprint-stats">
+      <view class="fp-stat">
+        <text class="fp-num">{{footprint.count}}</text>
+        <text class="fp-label">累计下单</text>
+      </view>
+      <view class="fp-divider"></view>
+      <view class="fp-stat">
+        <text class="fp-num">{{footprint.dishes}}</text>
+        <text class="fp-label">共点份数</text>
+      </view>
+      <view class="fp-divider"></view>
+      <view class="fp-stat">
+        <text class="fp-num">{{footprint.lastText || '—'}}</text>
+        <text class="fp-label">最近下单</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 店主：管理菜单（贴纸墙） -->
+  <view wx:if="{{isOwner}}" class="card admin-card">
+    <view class="section-title">店铺管理</view>
+    <view class="admin-grid">
+      <view class="admin-item" hover-class="sticker-press" hover-stay-time="80" data-url="/pages/admin/dishes/dishes" bindtap="goAdmin">
+        <view class="admin-icon-box">🍲</view>
+        <text class="admin-name">菜品管理</text>
+      </view>
+      <view class="admin-item" hover-class="sticker-press" hover-stay-time="80" data-url="/pages/admin/categories/categories" bindtap="goAdmin">
+        <view class="admin-icon-box">🗂️</view>
+        <text class="admin-name">分类管理</text>
+      </view>
+      <view class="admin-item" hover-class="sticker-press" hover-stay-time="80" data-url="/pages/admin/orders/orders" bindtap="goAdmin">
+        <view class="admin-icon-box">📦</view>
+        <text class="admin-name">订单管理</text>
+      </view>
+      <view class="admin-item" hover-class="sticker-press" hover-stay-time="80" data-url="/pages/admin/stats/stats" bindtap="goAdmin">
+        <view class="admin-icon-box">📊</view>
+        <text class="admin-name">点餐统计</text>
+      </view>
+      <view class="admin-item" hover-class="sticker-press" hover-stay-time="80" data-url="/pages/admin/invite/invite" bindtap="goAdmin">
+        <view class="admin-icon-box">👥</view>
+        <text class="admin-name">邀请好友</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 订单动态墙 -->
+  <view wx:if="{{isOwner}}" class="card heatmap-card">
+    <view class="heatmap-header">
+      <view class="section-title">订单动态墙</view>
+      <view class="heatmap-help" hover-class="chip-press" hover-stay-time="80" bindtap="showHeatmapHelp">?</view>
+    </view>
+    <scroll-view class="heatmap-scroll" scroll-x enhanced show-scrollbar="{{false}}" scroll-left="{{scrollLeft}}" scroll-with-animation="{{false}}">
+      <view class="heatmap-body" style="width:{{heatmapWeeks.length * 28 + 8}}rpx">
+        <view class="heatmap-months">
+          <view wx:for="{{heatmapMonths}}" wx:key="index" class="heatmap-month" style="left:{{item.left}}rpx">{{item.name}}</view>
+        </view>
+        <view class="heatmap-grid">
+          <view wx:for="{{heatmapWeeks}}" wx:for-item="week" wx:key="index" class="heatmap-week">
+            <view wx:for="{{week.days}}" wx:for-item="day" wx:key="date" class="heatmap-day heatmap-level-{{day.level}}" data-date="{{day.date}}" data-count="{{day.count}}" bindtap="onHeatmapDayTap"></view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="footer-tip">本小程序仅供我和朋友之间点餐使用</view>
+  </block>
+</view>

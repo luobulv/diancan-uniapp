@@ -1,0 +1,29 @@
+{
+  "name": "diancan-uniapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "呼噜点餐 · uni-app (Vue3 + Vite + Pinia + TypeScript)",
+  "scripts": {
+    "dev:mp-weixin": "node ./node_modules/@dcloudio/vite-plugin-uni/bin/uni.js -p mp-weixin",
+    "build:mp-weixin": "node ./node_modules/@dcloudio/vite-plugin-uni/bin/uni.js build -p mp-weixin && node scripts/sync-cloudfunctions.mjs build && node scripts/patch-app-json.mjs",
+    "sync:cloud": "node scripts/sync-cloudfunctions.mjs build",
+    "patch:appjson": "node scripts/patch-app-json.mjs"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-alpha-1000920260909822",
+    "@dcloudio/uni-components": "3.0.0-alpha-1000920260909822",
+    "@dcloudio/uni-mp-weixin": "3.0.0-alpha-1000920260909822",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.8",
+    "@dcloudio/uni-cli-shared": "3.0.0-alpha-1000920260909822",
+    "@dcloudio/uni-stacktracey": "3.0.0-alpha-1000920260909822",
+    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-1000920260909822",
+    "@vue/runtime-core": "^3.5.42",
+    "miniprogram-api-typings": "^3.12.0",
+    "typescript": "^5.0.0",
+    "vite": "8.2.2"
+  }
+}

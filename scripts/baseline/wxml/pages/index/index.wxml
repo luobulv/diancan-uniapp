@@ -1,0 +1,196 @@
+<view class="page">
+  <!-- 顶部品牌 banner -->
+  <view class="brand-banner">
+    <view class="brand-left">
+      <image class="brand-logo" src="/images/app-logo.jpg" mode="aspectFit" />
+      <view class="brand-text">
+        <view class="brand-title">呼噜点餐</view>
+        <view class="brand-sub">今日好好吃饭，明天好好生活</view>
+      </view>
+    </view>
+    <!-- 营业印章：手作食堂的记忆点，入场时"盖"下来 -->
+    <view class="brand-stamp">
+      <text class="stamp-icon">🐷</text>
+      <text class="stamp-text">营业中</text>
+    </view>
+  </view>
+
+  <!-- 访客提示 -->
+  <view wx:if="{{user && user.role === 'guest'}}" class="guest-tip">
+    <text>你还不是点餐成员，接受邀请后即可点餐</text>
+    <text class="guest-link" bindtap="goInvite">立即接受邀请 →</text>
+  </view>
+
+  <!-- 双栏：左侧分类菜单 + 右侧分组菜品 -->
+  <view class="catalog">
+    <!-- 左侧分类 -->
+    <scroll-view scroll-y class="cate-menu" enhanced show-scrollbar="{{false}}">
+      <view
+        class="cate-menu-item {{activeCategoryId === 'all' ? 'active' : ''}}"
+        data-id="all"
+        hover-class="cate-press"
+        hover-stay-time="100"
+        bindtap="switchCategory"
+      >全部</view>
+      <view
+        wx:for="{{categories}}"
+        wx:key="_id"
+        class="cate-menu-item {{activeCategoryId === item._id ? 'active' : ''}}"
+        data-id="{{item._id}}"
+        hover-class="cate-press"
+        hover-stay-time="100"
+        bindtap="switchCategory"
+      >{{item.name}}</view>
+      <view
+        wx:if="{{groupList[groupList.length-1]._id === '__uncat__'}}"
+        class="cate-menu-item {{activeCategoryId === '__uncat__' ? 'active' : ''}}"
+        data-id="__uncat__"
+        hover-class="cate-press"
+        hover-stay-time="100"
+        bindtap="switchCategory"
+      >未分类</view>
+    </scroll-view>
+
+    <!-- 右侧分组菜品 -->
+    <scroll-view
+      scroll-y
+      class="dish-pane"
+      enhanced
+      show-scrollbar="{{false}}"
+      bindscroll="onScroll"
+      upper-threshold="0"
+      lower-threshold="0"
+    >
+      <block wx:if="{{groupList.length > 0}}">
+        <view
+          wx:for="{{groupList}}"
+          wx:key="_id"
+          wx:for-item="group"
+        >
+          <view id="cat-{{group._id}}" class="group-header">
+            <text class="group-name">{{group.name}}</text>
+            <view class="group-line"></view>
+            <text class="group-count">{{group.dishes.length}} 道</text>
+          </view>
+          <view class="dish-card" wx:for="{{group.dishes}}" wx:key="_id" wx:for-item="dish">
+            <image class="dish-img" src="{{dish.imageUrl || '/images/placeholder.png'}}" mode="aspectFill" />
+            <view class="dish-info">
+              <view class="dish-name-row">
+                <text class="dish-name">{{dish.name}}</text>
+                <text wx:if="{{dish.orderCount > 0}}" class="order-count">已点 {{dish.orderCount}} 次</text>
+              </view>
+              <view class="stars" wx:if="{{dish.rating > 0}}">
+                <text
+                  wx:for="{{[1, 2, 3, 4, 5]}}"
+                  wx:for-item="s"
+                  wx:key="*this"
+                  class="star {{s <= dish.rating ? 'on' : ''}}"
+                >★</text>
+              </view>
+              <view class="dish-bottom">
+                <view wx:if="{{!isOwner}}" class="stepper">
+                  <block wx:if="{{cart[dish._id]}}">
+                    <view class="step-btn" data-id="{{dish._id}}" hover-class="btn-press" hover-stay-time="80" bindtap="decrease">−</view>
+                    <text class="step-num">{{cart[dish._id].quantity}}</text>
+                  </block>
+                  <view class="step-btn add" data-id="{{dish._id}}" hover-class="btn-press" hover-stay-time="80" bindtap="addToCart">+</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <view wx:elif="{{loading}}" class="loading-box">
+        <view class="loading-icon"></view>
+        <text>加载中...</text>
+      </view>
+
+      <view wx:else class="empty">
+        <text class="empty-icon">🍽️</text>
+        <text class="empty-text">暂无菜品</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 底部占位（店主不展示点餐条，也就不需要占位） -->
+  <view wx:if="{{!isOwner}}" class="cart-placeholder"></view>
+
+  <!-- 购物车条（店主不点餐，隐藏；朋友/访客可见） -->
+  <view wx:if="{{!isOwner}}" class="cart-bar" bindtap="toggleCart">
+    <view class="cart-icon-wrap">
+      <view class="cart-icon-plate">
+        <text class="cart-icon">🛒</text>
+      </view>
+      <text wx:if="{{cartCount > 0}}" class="cart-badge">{{cartCount}}</text>
+    </view>
+    <view class="cart-total">
+      <block wx:if="{{cartCount > 0}}">
+        <text class="cart-total-label">已选</text>
+        <text class="cart-total-num">{{cartCount}} 份</text>
+      </block>
+      <text wx:else class="cart-empty-text">还没有选择菜品</text>
+    </view>
+    <view class="cart-submit {{cartCount === 0 ? 'disabled' : ''}}" hover-class="cta-press" hover-stay-time="80" catchtap="openConfirm">
+      去下单
+    </view>
+  </view>
+
+  <!-- 购物车弹窗 -->
+  <view wx:if="{{showCart}}" class="mask" bindtap="closeCart">
+    <view class="cart-popup" catchtap="preventTouchMove">
+      <view class="popup-handle"></view>
+      <view class="popup-header">
+        <text class="popup-title">已选菜品</text>
+        <text class="popup-clear" hover-class="text-press" hover-stay-time="80" bindtap="clearCart">清空</text>
+      </view>
+
+      <scroll-view scroll-y class="popup-body">
+        <view class="popup-body-inner">
+          <view class="popup-item" wx:for="{{cartList}}" wx:key="dishId">
+            <view class="popup-item-info">
+              <text class="popup-item-name">{{item.name}}</text>
+            </view>
+            <view class="stepper">
+              <view class="step-btn" data-id="{{item.dishId}}" hover-class="btn-press" hover-stay-time="80" bindtap="decrease">−</view>
+              <text class="step-num">{{item.quantity}}</text>
+              <view class="step-btn add" data-id="{{item.dishId}}" hover-class="btn-press" hover-stay-time="80" bindtap="addToCart">+</view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="popup-footer">
+        <view class="cart-submit" hover-class="cta-press" hover-stay-time="80" bindtap="openConfirm">提交订单</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 确认下单弹窗 -->
+  <view wx:if="{{showConfirm}}" class="confirm-mask" bindtap="closeConfirm">
+    <view class="confirm-dialog" catchtap="preventTouchMove">
+      <view class="confirm-title">确认下单</view>
+
+      <scroll-view scroll-y class="confirm-list">
+        <view class="confirm-list-inner">
+          <view class="confirm-item" wx:for="{{cartList}}" wx:key="dishId">
+            <text class="confirm-item-name">{{item.name}}</text>
+            <text class="confirm-item-qty">×{{item.quantity}}</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <input
+        class="confirm-remark"
+        placeholder="备注（口味、忌口等，可选）"
+        value="{{remark}}"
+        bindinput="onRemarkInput"
+      />
+
+      <view class="confirm-actions">
+        <view class="confirm-btn cancel" hover-class="text-press" hover-stay-time="80" bindtap="closeConfirm">取消</view>
+        <view class="confirm-btn ok" hover-class="cta-press" hover-stay-time="80" bindtap="confirmOrder">确认下单</view>
+      </view>
+    </view>
+  </view>
+</view>

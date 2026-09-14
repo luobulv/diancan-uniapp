@@ -1,0 +1,153 @@
+<wxs src="./rating.wxs" module="ratingWxs" />
+
+<view class="page">
+  <!-- 菜品列表 -->
+  <view class="dish-card" wx:for="{{dishes}}" wx:key="_id">
+    <image class="dish-img" src="{{item.imageUrl || '/images/placeholder.png'}}" mode="aspectFill" />
+    <view class="dish-info">
+      <view class="dish-top">
+        <text class="dish-name" data-id="{{item._id}}" bindtap="openNameEditor">{{item.name}}</text>
+        <text class="dish-name-edit" data-id="{{item._id}}" bindtap="openNameEditor">✎</text>
+      </view>
+      <view class="dish-meta-row">
+        <text class="dish-meta">{{item.categoryName}} · 已点 {{item.orderCount}} 次</text>
+        <view class="stars">
+          <view class="star-wrap" wx:for="{{[1, 2, 3, 4, 5]}}" wx:for-item="s" wx:key="*this">
+            <text class="star-base">★</text>
+            <view class="star-fill" style="width: {{ratingWxs.fill(item.rating, s)}}">
+              <text class="star-on">★</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="dish-bottom">
+        <view class="ops">
+          <text class="op" data-id="{{item._id}}" bindtap="openEdit">编辑</text>
+          <text class="op danger" data-id="{{item._id}}" bindtap="remove">删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-box">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:if="{{dishes.length === 0 && !loading}}" class="empty">
+    <text class="icon">🍲</text>
+    还没有菜品，点击下方按钮添加
+  </view>
+
+  <!-- 添加按钮 -->
+  <view class="fab" bindtap="openAdd">＋ 添加菜品</view>
+
+  <!-- 表单弹窗 -->
+  <view wx:if="{{showForm}}" class="mask" bindtap="closeForm" style="padding-bottom: {{keyboardHeight}}px;">
+    <view class="form-panel" catchtap="preventTouchMove">
+      <view class="form-header">
+        <text class="form-title">{{editingId ? '编辑菜品' : '添加菜品'}}</text>
+        <text class="form-close" bindtap="closeForm">✕</text>
+      </view>
+
+      <scroll-view scroll-y class="form-body" style="max-height: {{bodyMaxHeight}};">
+        <!-- 内层容器负责内边距：scroll-view 不参与全局 border-box 规则，横向内边距会失效导致内容溢出 -->
+        <view class="form-inner">
+          <!-- 图片 -->
+          <view class="field">
+            <text class="label">图片</text>
+            <view class="image-uploader">
+              <block wx:if="{{form.imageUrl}}">
+                <image class="upload-preview" src="{{form.imageUrl}}" mode="aspectFill" />
+                <text class="remove-img" bindtap="removeImage">✕</text>
+              </block>
+              <view wx:else class="upload-btn" bindtap="chooseImage">＋ 上传图片</view>
+            </view>
+          </view>
+
+          <view class="field">
+            <text class="label">菜品名</text>
+            <input class="input" placeholder="如：红烧肉" value="{{form.name}}"
+                   adjust-position="{{false}}" cursor-spacing="20"
+                   bindinput="onNameInput" />
+          </view>
+
+          <view class="field">
+            <text class="label">分类</text>
+            <view class="input select-value" bindtap="openCategorySheet">
+              <text class="{{form.categoryId ? 'value-text' : 'placeholder-text'}}">{{categoryName || '请选择分类'}}</text>
+              <view class="chevron"></view>
+            </view>
+          </view>
+
+          <view class="field">
+            <text class="label">推荐指数</text>
+            <view class="star-selector">
+              <view class="star-wrap big" wx:for="{{[1, 2, 3, 4, 5]}}" wx:for-item="s" wx:key="*this">
+                <text class="star-base">★</text>
+                <view class="star-fill" style="width: {{ratingWxs.fill(form.rating, s)}}">
+                  <text class="star-on">★</text>
+                </view>
+                <view class="tap-left" data-value="{{s - 0.5}}" bindtap="setRating"></view>
+                <view class="tap-right" data-value="{{s}}" bindtap="setRating"></view>
+              </view>
+              <text class="star-hint">{{form.rating > 0 ? form.rating + ' 星' : '未评分'}} · 支持半星，再点一次清零</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="form-footer">
+        <view class="btn-cancel" bindtap="closeForm">取消</view>
+        <view class="btn-save" bindtap="save">保存</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类选择弹窗 -->
+  <view wx:if="{{showCategorySheet}}" class="mask sheet-mask" bindtap="closeCategorySheet">
+    <view class="sheet-panel" catchtap="preventTouchMove">
+      <view class="sheet-header">
+        <text class="sheet-title">选择分类</text>
+        <text class="sheet-close" bindtap="closeCategorySheet">✕</text>
+      </view>
+      <scroll-view scroll-y class="sheet-body">
+        <view
+          wx:for="{{categories}}"
+          wx:key="_id"
+          class="sheet-item {{form.categoryId === item._id ? 'active' : ''}}"
+          data-id="{{item._id}}"
+          bindtap="selectCategory"
+        >
+          <text class="sheet-item-name">{{item.name}}</text>
+          <text wx:if="{{form.categoryId === item._id}}" class="sheet-check">✓</text>
+        </view>
+        <view wx:if="{{categories.length === 0}}" class="sheet-empty">
+          暂无分类，请先到「分类管理」添加
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 快速改名称弹窗 -->
+  <view wx:if="{{showNamePopup}}" class="name-mask" bindtap="closeNamePopup">
+    <view class="name-dialog" catchtap="preventTouchMove">
+      <view class="name-title">修改名称</view>
+      <input
+        class="name-input"
+        value="{{renamingName}}"
+        placeholder="请输入菜品名"
+        focus="{{showNamePopup}}"
+        adjust-position="{{false}}"
+        cursor-spacing="20"
+        bindinput="onRenamingNameInput"
+        confirm-type="done"
+        bindconfirm="confirmRename"
+      />
+      <view class="name-actions">
+        <view class="name-btn cancel" bindtap="closeNamePopup">取消</view>
+        <view class="name-btn ok" bindtap="confirmRename">确认</view>
+      </view>
+    </view>
+  </view>
+</view>

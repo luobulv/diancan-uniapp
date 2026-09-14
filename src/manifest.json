@@ -1,0 +1,22 @@
+{
+  "name": "呼噜点餐",
+  "appid": "",
+  "description": "呼噜点餐 · 熟人点餐小程序",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "wx2c146bc0f9cf7637",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": true,
+      "ignoreUploadUnusedFiles": true
+    },
+    "usingComponents": true,
+    "libVersion": "3.4.10",
+    "lazyCodeLoading": "requiredComponents"
+  },
+  "vueVersion": "3"
+}

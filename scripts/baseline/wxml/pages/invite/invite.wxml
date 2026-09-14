@@ -1,0 +1,32 @@
+<view class="page">
+  <!-- 已是成员 -->
+  <view wx:if="{{status === 'member'}}" class="status-card">
+    <text class="status-icon">🎉</text>
+    <text class="status-title">你已是点餐成员</text>
+    <text class="status-desc">可以直接去点餐啦</text>
+    <view class="btn-primary main-btn" bindtap="goOrder">去点餐</view>
+  </view>
+
+  <!-- 接受成功 -->
+  <view wx:elif="{{status === 'success'}}" class="status-card">
+    <text class="status-icon">✅</text>
+    <text class="status-title">邀请接受成功</text>
+    <text class="status-desc">你现在可以开始点餐了</text>
+    <view class="btn-primary main-btn" bindtap="goOrder">开始点餐</view>
+  </view>
+
+  <!-- 输入邀请码 -->
+  <view wx:else class="status-card">
+    <text class="status-icon">🔑</text>
+    <text class="status-title">输入邀请码</text>
+    <text class="status-desc">请向店主索取邀请码后填写</text>
+    <input
+      class="code-input"
+      placeholder="6 位邀请码"
+      maxlength="6"
+      value="{{code}}"
+      bindinput="onCodeInput"
+    />
+    <view class="btn-primary main-btn" bindtap="accept">接受邀请</view>
+  </view>
+</view>
