@@ -33,27 +33,28 @@ node scripts/verify-handlers.mjs    # 确认模板里的事件绑定在 script �
 ```
 
 ```
-✓ pages/index/index                  基线  81 类 | 无缺失（有意移除 2） | 产物新增：cate-sk-wrap, cate-sk, sk, …
-✓ pages/orders/orders                基线  69 类 | 无缺失 | 产物新增：warn, remind-badge
-✓ pages/mine/mine                    基线  43 类 | 无缺失
+✓ pages/index/index                  基线  81 类 | 无缺失（有意移除 2） | 产物新增：cate-sk-wrap, cate-sk, sk, sk-card, …
+✓ pages/orders/orders                基线  69 类 | 无缺失（有意移除 2） | 产物新增：warn, remind-badge, more-hint, more-btn, sk-*
+✓ pages/mine/mine                    基线  43 类 | 无缺失（有意移除 2） | 产物新增：sk-*
 ✓ pages/invite/invite                基线   8 类 | 无缺失 | 产物新增：cta-press, code-placeholder
-✓ pages/admin/dishes/dishes          基线  68 类 | 无缺失 | 产物新增：text-press, cta-press, btn-press, chip-press
-✓ pages/admin/categories/categories  基线  23 类 | 无缺失
-✓ pages/admin/orders/orders          基线  22 类 | 无缺失
-✓ pages/admin/stats/stats            基线  19 类 | 无缺失
-✓ pages/admin/invite/invite          基线  20 类 | 无缺失
+✓ pages/admin/dishes/dishes          基线  68 类 | 无缺失（有意移除 2） | 产物新增：sk-*, text-press, cta-press, btn-press, chip-press
+✓ pages/admin/categories/categories  基线  23 类 | 无缺失（有意移除 2） | 产物新增：sk-*, cta-press, btn-press
+✓ pages/admin/orders/orders          基线  22 类 | 无缺失（有意移除 2） | 产物新增：count-bar, more-hint, more-btn, sk-*
+✓ pages/admin/stats/stats            基线  19 类 | 无缺失（有意移除 2） | 产物新增：sk-*
+✓ pages/admin/invite/invite          基线  20 类 | 无缺失（有意移除 2） | 产物新增：sk-*, cta-press, text-press
 全部页面 class 无缺失 · 全部事件绑定均有实现
 ```
 
 比对基线是 `scripts/baseline/wxml/`（原生 WXML 的**冻结快照**，拷贝自废除前的原生工程），
 不依赖任何外部目录。所以原生工程删掉之后，这道回归仍然有效。
 
-index 页的「有意移除 2」指 `loading-box` / `loading-icon` —— 加载态改成骨架屏后不再使用全局转圈，
-已登记在 `verify-structure.mjs` 的 `EXPECTED_MISSING` 白名单里（见文末注意事项 16）。
+每个页面的「有意移除 2」都指 `loading-box` / `loading-icon` —— 2026-09-14 第二轮把**全部**列表页的
+加载态统一成骨架屏，全局转圈不再被任何页面使用。8 个页面按页登记在
+`verify-structure.mjs` 的 `EXPECTED_MISSING` 白名单里并各自写了原因（见文末注意事项 15/16）。
 
-产物里新增的 class 有两类，都是有意的：按压反馈（`cta-press` / `text-press` / `btn-press` /
-`chip-press`）、结构增补（`pane-top` 锚点 / `group-wrap` / `code-placeholder` / 点餐页骨架屏的
-`loading-*` 与 `sk-*` 系列 / 订单页店主未推送警示态 `warn` 与 `remind-badge`）。
+产物里新增的 class 有三类，都是有意的：按压反馈（`cta-press` / `text-press` / `btn-press` /
+`chip-press`）、结构增补（`pane-top` 锚点 / `group-wrap` / `code-placeholder` / 骨架屏 `sk-*` 系列 /
+订单页店主未推送警示态 `warn` 与 `remind-badge`）、分页尾巴（`more-hint` / `more-btn` / `count-bar`）。
 
 ---
 
@@ -130,11 +131,18 @@ npm run build:mp-weixin
 
 1. 开发者工具打开 `dist/build/mp-weixin`，右上角确认 AppID 正确；
 2. **云函数面板**里给 `login` 与 `api` 各来一次「上传并部署：云端安装依赖」。
-   ⚠️ **2026-09-14 这版必须传**：`api` 修了 P0（订阅消息守卫恒真 → 推送从来没发出去过）、
-   服务端入参收口、邀请码原子性、热力图分页、头像地址协议校验；`login` 加了可选的店主白名单。
+   ⚠️ **必须传，而且必须和这一版前端一起上**：
+   - 第一轮：`api` 修了 P0（订阅消息守卫恒真 → 推送从来没发出去过）、服务端入参收口、
+     邀请码原子性、热力图分页、头像地址协议校验；`login` 加了可选的店主白名单。
+   - **第二轮（2026-09-14 晚）**：`dish.list` / `category.list` / `invite.list` / `stats.get`
+     改成分页取全量（原来超过 100 条会**静默截断**）；`order.listMine` / `order.listAll`
+     改成服务端分页 + 服务端日期/状态筛选，**返回结构从数组变成 `{ list, total, page, pageSize, hasMore }`**；
+     新增 `user.footprint`；订单里的菜名以服务端为准。
+     → ⚠️ **返回结构变了，云函数与前端必须同时更新**：只传一端的话订单页会读不到列表。
    源码只有一份，就是 `cloudfunctions/`，从这里传即可。
-   可选：想锁死店主身份，给 `login` 云函数加环境变量 `OWNER_OPENID=<你的 openid>`（不配则与旧版一致）；
-3. 工具栏「上传」→ 填 **版本号** 与 **项目备注**（例：`1.1.0` / `uni-app 版：点餐页骨架屏加载态`）；
+   可选：想锁死店主身份，给 `login` 云函数加环境变量 `OWNER_OPENID=<你的 openid>`（不配则与旧版一致）。
+   配了它 `api` 也能省掉每单一次的店主查询，建议两个云函数都配上同一个值；
+3. 工具栏「上传」→ 填 **版本号** 与 **项目备注**（例：`1.2.0` / `uni-app 版：列表分页 + 骨架屏统一`）；
 4. 上传成功后，去 <https://mp.weixin.qq.com> → **管理 → 版本管理 → 开发版本**，就能看到刚传的这个版本。
 
 ### 4. 从「开发版本」变成能用的版本
@@ -175,7 +183,7 @@ npm run build:mp-weixin
 diancan-uniapp/
 ├── cloudfunctions/              # 唯一的云函数源码（原生工程已废除，不存在第二份）
 │   ├── login/                   # 登录 + 首位用户自动成为店主（可用 OWNER_OPENID 白名单锁死）
-│   └── api/                     # 18 个业务 action（服务端入参收口都在文件顶部常量）
+│   └── api/                     # 19 个业务 action（服务端入参收口都在文件顶部常量）
 ├── docs/
 │   ├── REVIEW-2026-09-14.md     # 代码审查报告（P0~P4 + 修复状态）
 │   └── VUE3-MIGRATION-PLAN.md   # 迁移方案（历史文档）
@@ -200,7 +208,7 @@ diancan-uniapp/
     ├── sitemap.json             # 原样搬运（已改为全站 disallow）
     ├── config.ts                # 云环境 ID + 订阅模板 ID
     ├── static/images/           # 11 张图片资源
-    ├── types/api.ts             # 18 个 action 的数据模型
+    ├── types/api.ts             # 19 个 action 的数据模型（含订单分页 PagedOrders）
     ├── utils/
     │   ├── cloud.ts             # wx.cloud 封装（条件编译）
     │   ├── format.ts            # formatTime / statusInfo
@@ -233,8 +241,35 @@ diancan-uniapp/
 | 各页 `.wxss` | 各页 `.vue` 的 `<style scoped>`（1:1 搬运，未改写） |
 | 各页 `.wxml` | `scripts/baseline/wxml/` 的冻结快照（仅作回归基线，不再演进） |
 
-数据库与 18 个 action 的**接口契约完全没变**；但云函数**代码已不是零改动** ——
-P0~P4 的修复都落在 `cloudfunctions/` 里（这是有意的，详见审查报告）。
+### 接口契约现状（第二轮之后已不是「零变动」）
+
+数据库**结构**没变（5 个集合、字段名都与原生版一致），action 从 18 个增加到 19 个；
+但有两处**返回结构变了**，前端必须配套：
+
+| action | 变化 |
+| --- | --- |
+| `order.listMine` / `order.listAll` | 入参加 `page` / `pageSize` / `startDate` / `endDate` / `status`；<br>返回从 **数组** 变成 `{ list, total, page, pageSize, hasMore }`，`listAll` 额外带 `unnotified` |
+| `user.footprint`（新增） | 「我的」页点餐足迹的聚合值 `{ count, dishes, lastAt }`，替代原来在前端拿列表求和的写法 |
+| `dish.list` / `category.list` / `invite.list` / `stats.get` | 入参未变，但内部改为分页取全量（过去超过 100 条会静默截断） |
+
+云函数**代码**同样不是零改动 —— P0~P4 与第二轮的修复都落在 `cloudfunctions/` 里（详见审查报告）。
+
+### ⚠️ 建议加数据库索引
+
+`order.listMine` / `order.listAll` 现在是「筛选 + 排序 + 分页」的查询，
+**不建索引也能跑，但会全表扫描**。数据量小的时候无感，建议顺手在
+云开发控制台 → 数据库 → 索引管理里补上：
+
+| 集合 | 索引字段 |
+| --- | --- |
+| `orders` | `openid`(升) + `createdAt`(降) → `order.listMine` |
+| `orders` | `status`(升) + `createdAt`(降) → `order.listAll` 带状态筛选 |
+| `orders` | `createdAt`(降) → `order.listAll` 不筛选时 |
+| `dishes` | `createdAt`(降) / `orderCount`(降) |
+| `invitations` | `createdAt`(降) |
+
+（`fetchAll` 内部用 `skip + limit` 翻页，数据量特别大时 `skip` 会变慢 ——
+熟人场景的量级完全够用，不用提前优化。）
 
 ---
 
@@ -305,28 +340,42 @@ P0~P4 的修复都落在 `cloudfunctions/` 里（这是有意的，详见审查�
     不能等 `await userStore.login(true)` 回来再改，否则店主会先看一遍「我下单的」列表。
     **边界**：首次安装 / 清缓存后的第一次进入没有缓存可用，只能等 `login` 返回（几百毫秒空白），
     这是下限，不要再试图「优化掉」。
-15. **点餐页加载态用骨架屏，不用全局转圈**（2026-09-14）。
-    `App.vue` 里的 `.loading-box` / `.loading-icon` 是「一颗 48rpx 细圆环 + padding:120rpx 顶在顶部」的
-    通用转圈，跟手作食堂的视觉是两套语言，所以 index 页改用与 `.dish-card` **同构的骨架卡片**：
-    - 骨架卡片几何（图片 180rpx、圆角 `28/28/28/10`、内边距 20rpx、行高 26rpx）与真实卡片**逐项对齐**，
-      数据到位时列表不发生布局跳动；
-    - 扫光用 `sk::after` 的线性渐变 + **只动 transform**（`sk-sweep`），走合成层不掉帧，
-      四张卡片错峰 100ms 依次亮起；左栏分类同样用骨架行占位，底色要单独调深
-      （`--cream-deep` 压在 `--yellow-mist` 上几乎看不见）；
-    - 该节点是 scroll-view 的**直接子节点**，横向内边距必须自带 `.loading-wrap`，
-      否则会被内层滚动区吞掉（与 `.group-wrap` 同一坑）；
-    - **其它页面仍在用全局转圈**，没有跟着改 —— 只有点餐页是「列表 + 左栏」双骨架。
+15. **列表页加载态统一用骨架屏，不用全局转圈**（2026-09-14，两轮做完）。
+    `App.vue` 原有的 `.loading-box` / `.loading-icon`（一颗 48rpx 细圆环 + `padding:120rpx`）
+    已**删除** —— 它跟手作食堂的视觉是两套语言，而且不占位、数据到位时会把列表往下顶。
+    现在全局骨架屏定义在 `App.vue` 的 `.sk-panel` 一族
+    （`.sk-head` / `.sk-dots` / `.sk-dot` / `.sk-head-text` / `.sk-card` / `.sk-row` /
+    `.sk-thumb` / `.sk-lines` / `.sk-line` + 宽度档 `.sk-w30|40|60|90`），
+    orders / mine / admin 五页直接引用；点餐页另有一份 **scoped** 的 `sk-*`
+    （几何与 `.dish-card` 逐项对齐，已定稿 —— **没有合并进全局**，避免把已验收的页面改回去）。
+    - 扫光 `.sk-card::after` 是线性渐变且**只动 transform**（`hl-sk-sweep`），走合成层不掉帧；
+      三张卡片用 `nth-child(3|4)` 错峰 120ms / 240ms 依次亮起；
+    - 骨架底色用 `rgba(217, 130, 43, 0.16)`（焦糖 16%），**不要用 `--cream-deep`**
+      —— 它压在 `--yellow-mist` / `--paper` 上几乎看不见（点餐页左栏踩过）；
+    - ⚠️ 点餐页骨架的容器（`.loading-wrap` / `.sk-panel`）是 scroll-view 的**直接子节点**，
+      横向内边距必须自带，否则会被内层滚动区吞掉（与 `.group-wrap` 同一坑）；
+    - ⚠️ 骨架屏的 `loading` **初值必须是 `true`**（见 orders 页的 `makeState()`）：
+      它是「还没加载过 && 正在加载」的计算属性，初值给 `false` 会先闪一下空态再换骨架。
     - 可视化预览稿：`loading-preview.html`（不参与构建，可删）。
-16. **`verify-structure.mjs` 的 `EXPECTED_MISSING` 白名单**（2026-09-14 新增）。
+16. **`verify-structure.mjs` 的 `EXPECTED_MISSING` 白名单**（2026-09-14 新增，现有 8 个页面条目）。
     它做的是「**基线** WXML 的 class 在产物里一个不能少」，而**主动替换掉**的 class 会被误报成遗漏
-    （点餐页的 `loading-box` / `loading-icon` 就是这种情况）。白名单按页登记并附原因，脚本会单独打印出来。
-    **只适用于「已经知道为什么」，不适用于「先让它变绿」** —— 往里加条目等于消音，必须同时写清原因。
-    比对基线是 `scripts/baseline/wxml/` 里的**冻结快照**（不是某个外部工程），所以原生工程删掉后
-    这个校验照样有效。⚠️ 别去改那些 wxml，它们是参照物。
-17. **服务端校验一律收口在 `cloudfunctions/api/index.js` 顶部的常量里**（2026-09-14 加固）。
-    客户端表单能伪造的一切都必须在这里卡死：`MAX_ORDER_ITEMS=50` / `MAX_ITEM_QTY=99` /
-    `MAX_NAME_LEN=20` / `MAX_REMARK_LEN=200` / `INVITE_TTL_DAYS=7` / `ORDER_STATUS`。
+    （`loading-box` / `loading-icon` 现在在 8 个页面上都属于这种情况）。白名单按页登记并附原因，
+    脚本会单独打印出来。**只适用于「已经知道为什么」，不适用于「先让它变绿」** ——
+    往里加条目等于消音，必须同时写清原因。比对基线是 `scripts/baseline/wxml/` 里的**冻结快照**
+    （不是某个外部工程），所以原生工程删掉后这个校验照样有效。⚠️ 别去改那些 wxml，它们是参照物。
+17. **服务端校验与分页参数一律收口在 `cloudfunctions/api/index.js` 顶部的常量里**（2026-09-14 加固）。
+    客户端表单能伪造的一切都必须在这里卡死：
+    `MAX_ORDER_ITEMS=50` / `MAX_ITEM_QTY=99` / `MAX_NAME_LEN=20` / `MAX_REMARK_LEN=200` /
+    `MAX_ID_LEN=64` / `MAX_URL_LEN=512` / `INVITE_TTL_DAYS=7` / `ORDER_STATUS` /
+    `ORDER_PAGE_DEFAULT=20` / `ORDER_PAGE_MAX=50` / `SCAN_PAGE=100` / `MAX_SCAN=2000` /
+    `TZ_OFFSET_MS=8h`。
     改上限只改这几个常量，别再散落到各处判断。
+    - **名称截断要覆盖全部写入点**：`order.create` 的菜品名、`user.updateProfile` 的昵称、
+      `dish.add` / `dish.update` 的菜名、`category.add` / `category.update` 的分类名
+      —— 以前只收口了前两个，一个超长菜名就能把卡片布局撑坏；
+    - **图片地址必须过 `isStorableImage()`**（只收 `cloud://` 与 `https://`）：
+      `user.updateProfile` 与 `dish.add` / `dish.update` 都要过；菜品图空白是允许的（返回 `''`），
+      非法协议返回 `null` 由调用方转成 400。头像那边**丢弃不算错**是特例，原因见第 21 条。
     - **订单状态是英式拼写 `cancelled`（两个 l）**，写成 `canceled` 会被白名单拒掉；
     - `order.create` 会把同一 `dishId` 的多行**先合并再校验**，防止拆行绕过数量上限；
     - `invite.create` 会**查重重试**：32 选 6 碰撞概率低但非零，而 `invite.accept` 的
@@ -373,6 +422,37 @@ P0~P4 的修复都落在 `cloudfunctions/` 里（这是有意的，详见审查�
       所以**在产物里 grep 图片名要去 `common/assets.js` 找**，页面目录里只有 `src="{{F}}"` 占位。
     - 另注：`avatar-default.png` 与 `app-logo.jpg` 的 **MD5 完全相同**，也是个 JPEG 冒充 `.png`；
       因为 `.avatar` 有圆角遮住所以没动它 —— 将来若去掉头像圆角会立刻暴露同一个问题。
+24. ⭐ **列表分页与筛选一律走服务端**（2026-09-14 第二轮）。
+    `order.listMine` / `order.listAll` 现在返回
+    `{ list, total, page, pageSize, hasMore }`（`listAll` 额外带 `unnotified`），
+    入参可带 `page` / `pageSize`（默认 20，上限 50）/ `startDate` / `endDate` / `status`。
+    - ⚠️ **不要把这些筛选改回前端过滤**：一旦分页，前端 `filter` 只作用于「已加载的那一页」，
+      算出来的条数是错的（原来 ≤100 条全加载时看不出问题）；
+    - 所以 orders 页的 `summary` 用服务端 `total`，**不是本地数组长度**；
+      顶部「未推送」数量同理，由 `order.listAll` 单独 `count` 返回（不受分页与筛选影响）；
+    - orders 页两个 tab 各维护一份分页状态（`states.mine` / `states.all`），并带 `seq` 请求代号：
+      切筛选 / 改日期时，旧请求回来会被丢弃，避免旧数据覆盖新数据；
+    - admin/orders 改状态后**就地更新本地那一条**（`applyStatusLocally`），不整表重拉 ——
+      否则店主翻了几页之后一改状态就被弹回第一页。
+25. ⭐ **取整个集合必须走 `fetchAll()`**（2026-09-14 第二轮）。
+    云函数端单次 `get()` **默认且最多 100 条**，漏写 `.limit()` 就是**静默截断**
+    —— 不报错，只是列表慢慢变短，很难察觉。`dish.list` / `category.list` / `invite.list` /
+    `stats.get` / `stats.heatmap` / `user.footprint` 现在全部走 `fetchAll`；
+    以后新增「要把一个集合整个拿出来」的查询，请直接复用它，别手写 `.get()`。
+    扫描上限由 `MAX_SCAN=2000` 兜底：触顶会截断，而不是把云函数拖到超时。
+26. ⭐ **时间一律按 UTC+8 显式计算**（2026-09-14 第二轮）。
+    云函数进程时区不受我们控制（可能是 UTC），所以 `formatTime`（订阅消息 `time9`）与热力图的
+    日期键都用 `localDate()`（时间戳 +8h 之后用 `getUTC*` 读），
+    **不要用 `getFullYear` / `getHours` 这类跟随进程时区的接口** ——
+    否则凌晨 0~8 点下的单会被记到前一天，热力图少一格、推送里的时间也是错的。
+    `listOrders` 的日期筛选同理：`'YYYY-MM-DD'` 会被换算出 UTC+8 当天 00:00:00 与 23:59:59.999。
+27. **`order.create` 会校验菜品是否还在，并以服务端菜名为准**（2026-09-14 第二轮）。
+    店主删掉的菜，顾客购物车里的旧数据以前仍能下单成功（订单里留着一条永远点不到的菜），
+    而 `name` 是客户端传的、可以伪造。现在会批量 `_.in(ids)` 查库，缺任何一个就整单拒绝；
+    入库的 `name` 取库里的值。顺带把 `orderCount` 累加从串行 `await` 改成 `Promise.all`。
+28. **「我的」页的点餐足迹用 `user.footprint`**（2026-09-14 第二轮）。
+    它是服务端扫全量算出的 `{ count, dishes, lastAt }` —— **不要**在客户端拿分页列表自己求和，
+    那样只能算到第一页，订单一多就静默偏小。
 
 ---
 
@@ -380,6 +460,8 @@ P0~P4 的修复都落在 `cloudfunctions/` 里（这是有意的，详见审查�
 
 > 2026-09-11 首轮真机回归已发现并修掉「双栏布局未成立」的问题（见上），点餐页需要**再验一轮**。
 > 2026-09-14 点餐页加载态改为骨架屏，需一并核对。
+> 2026-09-14 晚（第二轮）：全部列表页骨架屏统一 + 订单改服务端分页，
+> 需要额外验「加载更多 / 筛选条数是否正确 / 日期按本地时区算」。
 
 - [ ] 微信开发者工具导入 `dist/build/mp-weixin`，编译无报错
 - [ ] 云函数面板能看到 `login` 与 `api`，两个都已重新部署
@@ -406,6 +488,19 @@ P0~P4 的修复都落在 `cloudfunctions/` 里（这是有意的，详见审查�
 - [ ] **菜品管理**：上传图片、半星评分点选（左右半星）、快速改名、键盘弹起时表单不被遮挡
 - [ ] **分类管理**：新增/编辑/删除后，点餐页能看到最新分类
 - [ ] **订单管理**：筛选切换、完成/取消状态流转、顾客头像能显示
+- [ ] **订单管理（第二轮）**：造 25 单以上，首屏只出 20 条，底部出现「加载更多」，
+      点它或多滑到底能把剩下的拉出来；条数条显示的是**服务端 total**，不是当前已加载条数
+- [ ] **订单管理（第二轮）**：切「已完成 / 已取消」筛选后，列表与条数**同时**变，
+      且切换后不再残留上一个筛选的旧数据（有请求代号防串页）
+- [ ] **订单管理（第二轮）**：改一单状态（完成/取消）后**整表不动**、只该行变化，
+      条数与筛选结果仍正确
+- [ ] **「订单」页（第二轮）**：顾客端上拉也能加载更多；「全部」筛选下的「N 单没推到微信」
+      只统计未推送的（不是全部订单数）
+- [ ] **日期筛选按本地时区（第二轮）**：在**凌晨 0 点后、早 8 点前**下一单，
+      它应算在**当天**，热力图当天那一格要亮；日期筛选选当天也要能筛出它
+- [ ] **写入校验（第二轮）**：菜名超 20 字会被截断而不是报错；菜品/分类名同理；
+      图片 URL 传非法值（非 `cloud://` 且非 `https://`）不会入库
+- [ ] **下单校验（第二轮）**：把购物车里的菜在管理端删掉后再下单，应被拒绝并提示菜品已下架
 - [ ] **点餐统计**：三个概览数字与排行条宽度正确
 - [ ] **邀请好友**：生成邀请码、复制、分享卡片能带 code 进入接受邀请页
 - [ ] 「我的」页：角色标签正确（店主 / 点餐成员 / 访客）

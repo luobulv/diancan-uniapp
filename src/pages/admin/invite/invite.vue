@@ -123,9 +123,25 @@ onShareAppMessage((options: any) => {
       </view>
     </view>
 
-    <view v-if="loading" class="loading-box">
-      <view class="loading-icon"></view>
-      <text>加载中...</text>
+    <view v-if="loading" class="sk-panel">
+      <view class="sk-head">
+        <view class="sk-dots">
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+        </view>
+        <text class="sk-head-text">加载中…</text>
+      </view>
+      <view v-for="n in 3" :key="n" class="sk-card">
+        <view class="sk-row">
+          <view class="sk-thumb"></view>
+          <view class="sk-lines">
+            <view class="sk-line sk-w60"></view>
+            <view class="sk-line sk-w90"></view>
+            <view class="sk-line sk-w40"></view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view v-if="viewInvitations.length === 0 && !loading" class="empty">

@@ -152,26 +152,122 @@ view, text, image, button, input, textarea {
   line-height: 1.6;
 }
 
-/* ========== 加载中（列表页通用） ========== */
-.loading-box {
+/* ========== 骨架屏（列表页通用） ==========
+ * 与点餐页骨架屏同一套语言：焦糖 16% 底色 + 只动 transform 的扫光 + 错峰。
+ * 点餐页那份是 scoped 的（几何与 .dish-card 逐项对齐），这里只做通用版本，
+ * 供 orders / mine / admin 五页复用 —— 不合并是为了不动已定稿的点餐页。
+ * 用法：
+ *   <view v-if="loading" class="sk-panel">
+ *     <view class="sk-head">
+ *       <view class="sk-dots"><view class="sk-dot"></view><view class="sk-dot"></view><view class="sk-dot"></view></view>
+ *       <text class="sk-head-text">加载中…</text>
+ *     </view>
+ *     <view v-for="n in 3" :key="n" class="sk-card">
+ *       <view class="sk-row">
+ *         <view class="sk-thumb"></view>
+ *         <view class="sk-lines">
+ *           <view class="sk-line sk-w60"></view>
+ *           <view class="sk-line sk-w90"></view>
+ *           <view class="sk-line sk-w40"></view>
+ *         </view>
+ *       </view>
+ *     </view>
+ *   </view>
+ */
+.sk-panel {
+  padding: 24rpx;
+}
+.sk-head {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  color: var(--tan);
-  padding: 120rpx 0;
-  font-size: 26rpx;
+  padding: 18rpx 4rpx 24rpx;
 }
-.loading-icon {
-  width: 48rpx;
-  height: 48rpx;
-  border: 6rpx solid var(--yellow-soft);
-  border-top-color: var(--amber);
+.sk-dots {
+  display: flex;
+  align-items: center;
+  height: 16rpx;
+  margin-right: 14rpx;
+}
+.sk-dot {
+  width: 12rpx;
+  height: 12rpx;
   border-radius: 50%;
-  animation: loading-spin 0.8s linear infinite;
-  margin-bottom: 16rpx;
+  background: var(--amber);
+  margin-right: 8rpx;
+  animation: hl-dot-bounce 1.2s ease-in-out infinite;
 }
-@keyframes loading-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.sk-dot:nth-child(2) { animation-delay: 160ms; }
+.sk-dot:nth-child(3) { animation-delay: 320ms; }
+.sk-head-text {
+  font-size: 26rpx;
+  color: var(--tan);
+  letter-spacing: 1rpx;
+}
+.sk-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  border-radius: var(--r-bowl);
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  border: 2rpx solid rgba(241, 227, 188, 0.6);
+  box-shadow: var(--shadow-sm);
+}
+/* 扫光：只动 transform（走合成层），不用 background-position 之类的重绘属性 */
+.sk-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 253, 246, 0) 0%,
+    rgba(255, 253, 246, 0.9) 50%,
+    rgba(255, 253, 246, 0) 100%
+  );
+  animation: hl-sk-sweep 1.5s ease-in-out infinite;
+}
+/* 面板里第 1 个子节点是 .sk-head，所以三张卡片是 nth-child(2|3|4) */
+.sk-card:nth-child(3)::after { animation-delay: 120ms; }
+.sk-card:nth-child(4)::after { animation-delay: 240ms; }
+.sk-row {
+  display: flex;
+  align-items: center;
+}
+.sk-thumb {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 20rpx;
+  background: rgba(217, 130, 43, 0.16);
+  flex-shrink: 0;
+}
+.sk-lines {
+  flex: 1;
+  min-width: 0;
+}
+.sk-row .sk-lines {
+  margin-left: 20rpx;
+}
+.sk-line {
+  height: 24rpx;
+  border-radius: var(--r-pill);
+  background: rgba(217, 130, 43, 0.16);
+}
+.sk-line + .sk-line {
+  margin-top: 16rpx;
+}
+.sk-w30 { width: 30%; }
+.sk-w40 { width: 40%; }
+.sk-w60 { width: 60%; }
+.sk-w90 { width: 90%; }
+@keyframes hl-sk-sweep {
+  from { transform: translateX(-130%); }
+  to { transform: translateX(230%); }
+}
+@keyframes hl-dot-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.45; }
+  50% { transform: translateY(-8rpx); opacity: 1; }
 }
 </style>

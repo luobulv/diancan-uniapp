@@ -4,7 +4,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { callApi, uploadFile } from '@/utils/cloud'
 import { makeCloudImagePath } from '@/utils/image'
 import { useUserStore } from '@/stores/user'
-import type { HeatmapData, Order } from '@/types/api'
+import type { FootprintData, HeatmapData } from '@/types/api'
 
 interface HeatmapDay {
   date: string
@@ -52,17 +52,16 @@ onShow(() => {
   load()
 })
 
-/** 非店主：拉取我的下单记录，算「点餐足迹」 */
+/** 非店主：拉取点餐足迹（服务端聚合，不依赖分页列表） */
 async function loadFootprint() {
   try {
-    const res = await callApi<Order[]>('order.listMine')
-    const orders = res.data || []
-    let dishes = 0
-    orders.forEach((o) => (o.items || []).forEach((it) => (dishes += it.quantity || 0)))
+    const res = await callApi<FootprintData>('user.footprint')
+    const data = res.data
+    if (res.code !== 0 || !data) throw new Error(res.msg || '加载失败')
 
     let lastText = ''
-    if (orders.length > 0) {
-      const t = new Date(orders[0].createdAt as unknown as string)
+    if (data.lastAt) {
+      const t = new Date(data.lastAt as unknown as string)
       const now = new Date()
       const diffDay = Math.floor((now.getTime() - t.getTime()) / 86400000)
       if (diffDay <= 0) lastText = '今天'
@@ -70,7 +69,7 @@ async function loadFootprint() {
       else if (diffDay < 30) lastText = `${diffDay} 天前`
       else lastText = '一个月前'
     }
-    footprint.value = { count: orders.length, dishes, lastText }
+    footprint.value = { count: data.count, dishes: data.dishes, lastText }
   } catch (e) {
     console.error('加载点餐足迹失败：', e)
   }
@@ -231,9 +230,25 @@ function goInvite() {
 
 <template>
   <view class="page">
-    <view v-if="loading" class="loading-box">
-      <view class="loading-icon"></view>
-      <text>加载中...</text>
+    <view v-if="loading" class="sk-panel">
+      <view class="sk-head">
+        <view class="sk-dots">
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+        </view>
+        <text class="sk-head-text">加载中…</text>
+      </view>
+      <view v-for="n in 3" :key="n" class="sk-card">
+        <view class="sk-row">
+          <view class="sk-thumb"></view>
+          <view class="sk-lines">
+            <view class="sk-line sk-w60"></view>
+            <view class="sk-line sk-w90"></view>
+            <view class="sk-line sk-w40"></view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <template v-else>

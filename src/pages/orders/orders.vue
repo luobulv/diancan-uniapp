@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import { computed, reactive, ref } from 'vue'
+import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app'
 import { callApi } from '@/utils/cloud'
 import { formatTime } from '@/utils/format'
 import { SUBSCRIBE_TEMPLATE_ID } from '@/config'
 import { requestOrderSubscribe } from '@/utils/subscribe'
 import { useUserStore } from '@/stores/user'
-import type { Order } from '@/types/api'
+import type { Order, PagedOrders } from '@/types/api'
 
 /** 订单的展示态（在原 Order 上补预格式化的字段） */
 interface OrderView extends Order {
@@ -18,11 +18,56 @@ interface OrderView extends Order {
 type FilterKey = 'mine' | 'all'
 type TabKey = 'orders' | 'diary'
 
+/** 一页拉多少条（与云函数 ORDER_PAGE_DEFAULT 对齐） */
+const PAGE_SIZE = 20
+
+/**
+ * 「我下单的」与「全部」各自维护一份分页状态。
+ *
+ * ⚠️ 分页之后**不能**再在前端做日期筛选 —— 那只会筛「已加载的那一页」，
+ * 条数是错的。所以日期范围随请求发给云函数（见 fetchList），
+ * summary 也改用服务端返回的 total，而不是本地数组长度。
+ */
+interface ListState {
+  list: OrderView[]
+  total: number
+  page: number
+  hasMore: boolean
+  loading: boolean
+  /** 是否成功加载过一次 —— 决定当前显示骨架屏还是空态 */
+  loadedOnce: boolean
+  /**
+   * 请求代号。切换筛选 / 改日期范围会打断正在飞的请求，
+   * 回包时用它判断「我这次是不是已经被更新的请求取代了」，
+   * 避免旧数据后到把新数据覆盖掉。
+   */
+  seq: number
+}
+
+function makeState(): ListState {
+  return {
+    list: [],
+    total: 0,
+    page: 0,
+    hasMore: false,
+    // ⚠️ 初值必须是 true：loading 计算属性是「还没加载过 && 正在加载」，
+    // 若这里给 false，首帧就会先闪一下「还没有订单哦」再换骨架屏。
+    loading: true,
+    loadedOnce: false,
+    seq: 0
+  }
+}
+
+const states = reactive<Record<FilterKey, ListState>>({
+  mine: makeState(),
+  all: makeState()
+})
+
 const userStore = useUserStore()
 
-const mineOrders = ref<OrderView[]>([])
-const allOrders = ref<OrderView[]>([])
-const loading = ref(true)
+/** 未推送订单数：由 order.listAll 单独统计返回，不受分页影响（原实现是数本地数组长度） */
+const unnotifiedCount = ref(0)
+
 // ⚠️ 初始值必须直接取本地缓存的角色，不能等 loadOrders() 里 await 登录后再切。
 // 否则店主每次进页面都会先渲染一遍「我下单的」列表再跳成「全部」——就是那个角色闪烁。
 const filter = ref<FilterKey>(userStore.isOwner ? 'all' : 'mine')
@@ -32,6 +77,20 @@ const dateStart = ref('')
 const dateEnd = ref('')
 const dateRangeText = ref('')
 const showDateRangePopup = ref(false)
+
+/** 当前筛选维度对应的列表状态 */
+const activeState = computed(() => states[filter.value])
+const orders = computed(() => activeState.value.list)
+/** 骨架屏只在「这份列表还没成功加载过」时显示；已有数据时是底部「加载更多」 */
+const loading = computed(() => !activeState.value.loadedOnce && activeState.value.loading)
+const loadingMore = computed(() => activeState.value.loadedOnce && activeState.value.loading)
+/** 当前筛选维度是否还有下一页 */
+const hasMore = computed(() => activeState.value.hasMore)
+
+/** 底部「加载更多」：与上拉触底走同一条路径 */
+function loadMore() {
+  fetchList(filter.value, false)
+}
 
 /** 对应原 Page 实例上的 this._initFilter（setup 只执行一次，等价于实例属性） */
 let filterInited = userStore.isOwner
@@ -59,35 +118,59 @@ function toView(o: Order): OrderView {
   }
 }
 
-/** 当前筛选维度下的全量（未按日期过滤）—— summary 用的是它的长度，与原实现一致 */
-const baseOrders = computed(() =>
-  filter.value === 'all' ? allOrders.value : mineOrders.value
-)
-
-const orders = computed(() => {
-  let list = baseOrders.value
-  if (dateStart.value) list = list.filter((o) => o.dateKey >= dateStart.value)
-  if (dateEnd.value) list = list.filter((o) => o.dateKey <= dateEnd.value)
-  return list
-})
-
-/** 对应原 data.summary：注意是 base.length，不是筛选后的条数 */
-const summary = computed(() => baseOrders.value.length)
+/** 对应原 data.summary：现在是**服务端**返回的命中总条数（不是已加载条数） */
+const summary = computed(() => activeState.value.total)
 
 /**
- * 有多少条订单没能推送到店主微信。
+ * 拉一页订单。
  *
- * ⚠️ 这个数通常不为 0，**不代表出错**。订阅消息是「授权一次 = 只能推一次」的模型：
- * 店主授权后，第一单就把它用掉了，之后每单都是 notified: false。
- * 所以它是「该补一次授权了」的信号 —— 用它把顶部提醒卡切成警示态。
+ * reset = true 从第 1 页重来（首次进入 / 下拉刷新 / 切筛选 / 改日期范围）；
+ * reset = false 追加下一页（上拉加载更多）。
  *
- * 只算 notified === false：修复前创建的订单没有这个字段（undefined），不算未推送。
+ * ⚠️ 日期范围必须发给云函数：分页之后如果还在前端 filter，就只筛了「已加载的
+ * 那一页」，得出的条数是错的（原来 ≤100 条全加载时没这个问题）。
  */
-const unnotifiedCount = computed(
-  () => allOrders.value.filter((o) => o.notified === false).length
-)
+async function fetchList(key: FilterKey, reset: boolean) {
+  const st = states[key]
+  // 追加下一页时不允许并发（会重复追加）；重置请求则允许打断上一次
+  if (!reset && (st.loading || !st.hasMore || st.page === 0)) return
+  if (reset) st.seq += 1
+  const seq = st.seq
 
-async function loadOrders() {
+  st.loading = true
+  try {
+    const action = key === 'all' ? 'order.listAll' : 'order.listMine'
+    const res = await callApi<PagedOrders>(action, {
+      page: reset ? 1 : st.page + 1,
+      pageSize: PAGE_SIZE,
+      startDate: dateStart.value || undefined,
+      endDate: dateEnd.value || undefined
+    })
+    const data = res.data
+    if (res.code !== 0 || !data) throw new Error(res.msg || '加载失败')
+    // 期间又发起了更新的请求（切筛选 / 改日期）→ 丢弃这次结果
+    if (seq !== st.seq) return
+
+    const rows = (data.list || []).map(toView)
+    st.list = reset ? rows : st.list.concat(rows)
+    st.total = data.total
+    st.page = data.page
+    st.hasMore = data.hasMore
+    st.loadedOnce = true
+    // 未推送条数由服务端单独统计（不受分页与日期筛选影响），只有 listAll 会返回。
+    // ⚠️ 它通常不为 0，**不代表出错**：订阅消息是「授权一次只能推一单」，
+    // 店主授权后第一单就用掉了，之后每单 notified 都是 false —— 这是「该补授权了」的信号。
+    if (typeof data.unnotified === 'number') unnotifiedCount.value = data.unnotified
+  } catch (e) {
+    console.error(e)
+    if (seq === st.seq && reset) uni.showToast({ title: '订单加载失败', icon: 'none' })
+  } finally {
+    // 只有「最新那次请求」才有资格把 loading 关掉，否则会把后发请求的状态提前结束
+    if (seq === st.seq) st.loading = false
+  }
+}
+
+async function loadOrders(reset = true) {
   try {
     // 进入订单页时强制刷新用户，避免「全部」tab 误判店主身份
     const user = await userStore.login(true)
@@ -102,32 +185,37 @@ async function loadOrders() {
       filter.value = 'mine'
     }
 
-    const tasks = [callApi<Order[]>('order.listMine')]
-    if (user.role === 'owner') tasks.push(callApi<Order[]>('order.listAll'))
-    const results = await Promise.all(tasks)
-
-    mineOrders.value = (results[0].data || []).map(toView)
-    allOrders.value =
-      user.role === 'owner' ? (results[1]?.data || []).map(toView) : mineOrders.value
-
-    loading.value = false
+    const tasks = [fetchList('mine', reset)]
+    if (user.role === 'owner') tasks.push(fetchList('all', reset))
+    await Promise.all(tasks)
   } catch (e) {
     console.error(e)
-    loading.value = false
+    uni.showToast({ title: '加载失败', icon: 'none' })
+    // 登录就失败时列表请求根本没发出去，得把 loading 收干净，
+    // 否则骨架屏会一直转下去（loading 计算属性是「未加载过 && 正在加载」）
+    states.mine.loading = false
+    states.all.loading = false
   }
 }
 
 onShow(() => {
-  loadOrders()
+  loadOrders(true)
 })
 
 onPullDownRefresh(() => {
-  loadOrders().then(() => uni.stopPullDownRefresh())
+  loadOrders(true).then(() => uni.stopPullDownRefresh())
+})
+
+/** 上拉触底：给当前列表追加下一页 */
+onReachBottom(() => {
+  fetchList(filter.value, false)
 })
 
 function switchFilter(key: FilterKey) {
   if (key === filter.value) return
   filter.value = key
+  // 这份列表还没加载过就先拉第一页（例如店主切到「我下单的」）
+  if (!states[key].loadedOnce) fetchList(key, true)
 }
 
 function switchTab(key: TabKey) {
@@ -182,12 +270,15 @@ function confirmDateRange() {
   }
   dateRangeText.value = text
   showDateRangePopup.value = false
+  // 日期范围是服务端筛选条件，改完必须从第 1 页重新拉
+  fetchList(filter.value, true)
 }
 
 function clearDate() {
   dateStart.value = ''
   dateEnd.value = ''
   dateRangeText.value = ''
+  fetchList(filter.value, true)
 }
 
 function resubscribe() {
@@ -337,11 +428,40 @@ function preventTouchMove() {}
           <view v-if="item.remark" class="diary-remark">「{{ item.remark }}」</view>
         </view>
       </view>
+
+      <!-- 分页尾巴：上拉会自动加载，也可以点一下 -->
+      <view class="more-hint">
+        <text v-if="loadingMore">正在加载…</text>
+        <text
+          v-else-if="hasMore"
+          class="more-btn"
+          hover-class="text-press"
+          hover-stay-time="80"
+          @tap="loadMore"
+        >加载更多</text>
+        <text v-else>已显示全部 {{ summary }} 单</text>
+      </view>
     </template>
 
-    <view v-else-if="loading" class="loading-box">
-      <view class="loading-icon"></view>
-      <text>加载中...</text>
+    <view v-else-if="loading" class="sk-panel">
+      <view class="sk-head">
+        <view class="sk-dots">
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+        </view>
+        <text class="sk-head-text">正在翻账本…</text>
+      </view>
+      <view v-for="n in 3" :key="n" class="sk-card">
+        <view class="sk-row">
+          <view class="sk-thumb"></view>
+          <view class="sk-lines">
+            <view class="sk-line sk-w40"></view>
+            <view class="sk-line sk-w90"></view>
+            <view class="sk-line sk-w60"></view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view v-else class="empty">
@@ -829,6 +949,24 @@ function preventTouchMove() {}
   font-size: 28rpx;
   color: var(--tan);
   letter-spacing: 1rpx;
+}
+
+/* ========== 分页尾巴 ========== */
+.more-hint {
+  padding: 8rpx 0 40rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--tan);
+  letter-spacing: 1rpx;
+}
+.more-btn {
+  display: inline-block;
+  padding: 12rpx 40rpx;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  border: 2rpx solid var(--line);
+  color: var(--caramel);
+  font-weight: 600;
 }
 
 /* ========== 日期范围弹窗 ========== */

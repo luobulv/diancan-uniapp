@@ -50,14 +50,19 @@ onShow(() => {
 /* ==================== 数据加载 ==================== */
 
 async function init() {
-  try {
-    // 每次进入点餐页都从云端刷新角色：避免登录自愈 / 后台改角色后，
-    // 本地缓存仍是旧值导致「去下单」走不通（对应原 app.refreshUser()）
-    await userStore.login(true)
-    // 菜单同样强制拉取：熟人点餐场景里「店主刚加的菜立刻能点」比省一次请求重要
-    await catalog.load(true)
-  } catch (e) {
-    console.error(e)
+  // 角色与菜单是两个互不依赖的请求，串行 await 会让首屏白等将近一倍时间。
+  // 两者都保留「强制刷新」：角色强刷是登录自愈 / 后台改角色的依赖，
+  // 菜单强刷是「店主刚加的菜立刻能点」的要求 —— 只是改成并发，不是省掉。
+  // 用 allSettled 而不是 all：其中一个失败不应把另一个也一起丢掉。
+  const results = await Promise.allSettled([
+    userStore.login(true),
+    catalog.load(true)
+  ])
+  const rejected = results.filter(
+    (r): r is PromiseRejectedResult => r.status === 'rejected'
+  )
+  if (rejected.length > 0) {
+    console.error(rejected[0].reason)
     uni.showToast({ title: '加载失败', icon: 'none' })
   }
 }
@@ -305,7 +310,7 @@ onShareAppMessage(() => ({ title: '一起点餐吧', path: '/pages/index/index' 
             <view v-for="dish in group.dishes" :key="dish._id" class="dish-card">
               <image
                 class="dish-img"
-                :src="dish.imageUrl || '/static/images/placeholder.png'"
+                :src="dish.imageSrc || dish.imageUrl || '/static/images/placeholder.png'"
                 mode="aspectFill"
               />
               <view class="dish-info">

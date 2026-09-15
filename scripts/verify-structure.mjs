@@ -85,11 +85,20 @@ function classSet(wxml) {
  * 加进这里必须写清原因 —— 脚本会把它单独打印出来，避免它变成消音器：
  * 白名单只适用于「已经知道为什么」，不适用于「先让它变绿」。
  */
+const SK_SKELETON = '加载态改为骨架屏（App.vue 的 .sk-panel 一族），不再使用全局转圈'
 const EXPECTED_MISSING = {
   'pages/index/index': {
     'loading-box': '点餐页加载态改为骨架屏，不再使用全局转圈（见 index.vue 加载态样式）',
     'loading-icon': '同上'
-  }
+  },
+  // 2026-09-14 第二轮：其余页面的全局转圈也统一换成骨架屏（全局样式在 App.vue）
+  'pages/orders/orders': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON },
+  'pages/mine/mine': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON },
+  'pages/admin/dishes/dishes': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON },
+  'pages/admin/categories/categories': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON },
+  'pages/admin/orders/orders': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON },
+  'pages/admin/stats/stats': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON },
+  'pages/admin/invite/invite': { 'loading-box': SK_SKELETON, 'loading-icon': SK_SKELETON }
 }
 
 let failed = 0

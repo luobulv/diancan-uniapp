@@ -333,7 +333,7 @@ async function doRemove(id: string) {
   <view class="page">
     <!-- 菜品列表 -->
     <view v-for="d in viewDishes" :key="d._id" class="dish-card">
-      <image class="dish-img" :src="d.imageUrl || '/static/images/placeholder.png'" mode="aspectFill" />
+      <image class="dish-img" :src="d.imageSrc || d.imageUrl || '/static/images/placeholder.png'" mode="aspectFill" />
       <view class="dish-info">
         <view class="dish-top">
           <text class="dish-name" @tap="openNameEditor(d)">{{ d.name }}</text>
@@ -359,9 +359,25 @@ async function doRemove(id: string) {
       </view>
     </view>
 
-    <view v-if="loading" class="loading-box">
-      <view class="loading-icon"></view>
-      <text>加载中...</text>
+    <view v-if="loading" class="sk-panel">
+      <view class="sk-head">
+        <view class="sk-dots">
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+          <view class="sk-dot"></view>
+        </view>
+        <text class="sk-head-text">加载中…</text>
+      </view>
+      <view v-for="n in 3" :key="n" class="sk-card">
+        <view class="sk-row">
+          <view class="sk-thumb"></view>
+          <view class="sk-lines">
+            <view class="sk-line sk-w60"></view>
+            <view class="sk-line sk-w90"></view>
+            <view class="sk-line sk-w40"></view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view v-if="viewDishes.length === 0 && !loading" class="empty">
