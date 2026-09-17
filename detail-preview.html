@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>呼噜点餐 · 菜品详情弹窗预览</title>
+<style>
+  /* 令牌与小程序 app.wxss 同源；比例 1rpx = 0.5px */
+  :root {
+    --cream: #FFF8E7; --cream-deep: #FBF0D2; --paper: #FFFDF6;
+    --yellow: #F7C948; --yellow-mist: #FBEEC9; --yellow-soft: #FDF3D6;
+    --amber: #F5A623; --caramel: #D9822B; --brown: #6B4423;
+    --ink: #4A2F18; --tan: #8B5A2B; --sand: #B98A4A; --line: #F1E3BC;
+    --r-pill: 999px;
+    --shadow-sm: 0 1px 4px rgba(180,120,50,.08);
+    --shadow-pop: 0 6px 16px rgba(245,166,35,.30);
+    --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+    --ease-out: cubic-bezier(0.16,1,0.3,1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #FFF8E7 0%, #FBF0D2 60%, #F7E9C4 100%);
+    min-height: 100vh; padding: 40px 24px 64px; color: var(--ink);
+  }
+
+  .head { text-align: center; margin-bottom: 36px; }
+  .head h1 { font-size: 26px; font-weight: 800; letter-spacing: 2px; color: var(--brown); }
+  .head p { font-size: 13px; color: var(--tan); margin-top: 8px; letter-spacing: 1px; }
+  .head .dots { color: var(--sand); letter-spacing: 6px; margin-top: 10px; font-size: 12px; }
+
+  .stage { display: flex; flex-wrap: wrap; gap: 36px; justify-content: center; align-items: flex-start; }
+  .unit { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .phone-label { font-size: 13px; font-weight: 700; color: var(--brown); letter-spacing: 2px;
+    background: var(--paper); border: 1.5px dashed var(--line); border-radius: 999px; padding: 5px 18px; }
+  /* 375px 是「内容区」宽度：左右各 8px 边框由 border-box 计入宽度，
+     所以外框要写 391px，否则内容区被压成 359px，1rpx = 0.5px 的比例就不成立了 */
+  .phone {
+    width: 391px; height: 736px; background: var(--cream);
+    border-radius: 44px; border: 8px solid #6B4423;
+    box-shadow: 0 32px 64px rgba(107,68,35,.22);
+    overflow: hidden; position: relative; display: flex; flex-direction: column;
+  }
+  .phone::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background-image: radial-gradient(rgba(245,166,35,.07) 1px, transparent 1px); background-size: 24px 24px; }
+  .notes { width: 375px; font-size: 12px; line-height: 1.9; color: var(--tan);
+    background: var(--paper); border-radius: 14px; padding: 12px 16px; border: 1.5px dashed var(--line); }
+  .notes b { color: var(--caramel); font-weight: 700; }
+  .notes code { background: var(--yellow-soft); border-radius: 4px; padding: 1px 5px; color: var(--brown); font-size: 11px; }
+
+  /* ---------- 点餐页（背景层） ---------- */
+  .banner { position: relative; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 15px 16px; background: linear-gradient(135deg, #F7C948, #F5A623); overflow: hidden; flex-shrink: 0; }
+  .banner::before { content: ''; position: absolute; right: -40px; top: -60px; width: 160px; height: 160px;
+    border-radius: 50%; background: rgba(255,253,246,.18); }
+  .brand-left { display: flex; align-items: center; position: relative; z-index: 1; }
+  .brand-logo { width: 44px; height: 44px; border-radius: 50%; background: #fff; margin-right: 10px;
+    border: 2px solid rgba(255,253,246,.7); box-shadow: 0 3px 8px rgba(107,68,35,.18);
+    transform: rotate(-6deg); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .brand-title { font-size: 19px; font-weight: 800; letter-spacing: 1.5px; color: var(--brown); }
+  .brand-sub { font-size: 11px; color: rgba(74,47,24,.72); margin-top: 3px; }
+  .stamp { position: relative; z-index: 1; width: 52px; height: 52px; border-radius: 50%;
+    border: 1.5px dashed rgba(255,253,246,.9); background: rgba(255,253,246,.28);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(8deg); }
+  .stamp .si { font-size: 18px; line-height: 1.1; }
+  .stamp .st { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--brown); }
+
+  .catalog { flex: 1; display: flex; min-height: 0; }
+  .cate-menu { width: 92px; background: var(--yellow-mist); flex-shrink: 0; }
+  .cate-item { padding: 15px 6px; font-size: 13px; color: var(--tan); text-align: center; position: relative; }
+  .cate-item.active { background: var(--cream); color: var(--caramel); font-weight: 800; }
+  .cate-item.active::before { content: ''; position: absolute; left: 0; top: 13px; bottom: 13px; width: 4px;
+    border-radius: 0 4px 4px 0; background: linear-gradient(180deg, var(--yellow), var(--amber)); }
+
+  .dish-pane { flex: 1; padding: 8px 0; }
+  .group-wrap { padding: 0 10px; }
+  .group-header { display: flex; align-items: center; padding: 9px 2px 7px; margin-bottom: 7px; }
+  .group-name { font-size: 14px; font-weight: 800; color: var(--brown); display: flex; align-items: center; flex-shrink: 0; }
+  .group-name::before { content: ''; width: 7px; height: 7px; border-radius: 50% 50% 2px 50%;
+    background: var(--amber); margin-right: 6px; transform: rotate(45deg); }
+  .group-line { flex: 1; margin: 0 8px; border-bottom: 1px dashed var(--line); }
+  .group-count { font-size: 11px; color: var(--tan); flex-shrink: 0; }
+
+  .dish-card { display: flex; background: var(--paper); border-radius: 14px 14px 14px 5px;
+    padding: 10px; margin-bottom: 10px; box-shadow: var(--shadow-sm); border: 1px solid rgba(241,227,188,.6); }
+  .dish-img { width: 90px; height: 90px; border-radius: 10px; flex-shrink: 0;
+    border: 2px solid #fff; box-shadow: 0 2px 6px rgba(180,120,50,.10);
+    display: flex; align-items: center; justify-content: center; font-size: 40px;
+    background: radial-gradient(circle at 35% 28%, #FBE3B0 0%, #F0C87A 48%, #DD9E52 100%); }
+  .dish-img.alt { background: radial-gradient(circle at 35% 28%, #DCEFD7 0%, #A9D5A0 50%, #7FB877 100%); }
+  .dish-img.alt2 { background: radial-gradient(circle at 35% 28%, #F7DCD0 0%, #E9A98F 50%, #D07F5F 100%); }
+  .dish-info { flex: 1; margin-left: 10px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+  .dish-name-row { display: flex; align-items: center; }
+  .dish-name { font-size: 15px; font-weight: 700; color: var(--ink); margin-right: 6px; }
+  .order-count { font-size: 11px; color: var(--tan); }
+  .stars { display: flex; margin-top: 4px; }
+  .star { font-size: 13px; color: var(--line); margin-right: 2px; }
+  .star.on { color: var(--amber); }
+  .dish-bottom { display: flex; justify-content: flex-end; margin-top: 5px; }
+  .stepper { display: flex; align-items: center; }
+  .step-btn { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; line-height: 1; background: var(--yellow-mist); color: var(--tan); }
+  .step-btn.add { background: linear-gradient(135deg, var(--yellow), var(--amber)); color: var(--ink);
+    font-weight: 700; box-shadow: var(--shadow-pop); }
+  .step-num { min-width: 28px; text-align: center; font-size: 15px; font-weight: 700; color: var(--caramel); }
+
+  .cart-bar { position: absolute; left: 10px; right: 10px; bottom: 10px; height: 55px; background: var(--paper);
+    display: flex; align-items: center; padding: 0 8px 0 10px; border-radius: var(--r-pill);
+    box-shadow: 0 6px 20px rgba(107,68,35,.18); border: 1px solid rgba(241,227,188,.8); z-index: 2; }
+  .cart-icon-plate { width: 40px; height: 40px; border-radius: 50%; transform: rotate(-6deg);
+    background: linear-gradient(135deg, var(--yellow), var(--amber)); display: flex;
+    align-items: center; justify-content: center; font-size: 20px; box-shadow: var(--shadow-pop); }
+  .cart-total { flex: 1; margin-left: 10px; font-size: 13px; color: var(--tan); }
+  .cart-submit { width: 104px; height: 41px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #F7C948, #F5A623); color: var(--ink); border-radius: var(--r-pill);
+    font-size: 15px; font-weight: 800; letter-spacing: 1px; box-shadow: var(--shadow-pop); }
+
+  /* ---------- 点击热区标注 ---------- */
+  .tap-ring { position: absolute; inset: -5px; border: 2px dashed var(--caramel); border-radius: 13px;
+    animation: ring-pulse 1.6s ease-in-out infinite; }
+  .tap-tag { position: absolute; left: -6px; top: -20px; font-size: 10px; font-weight: 700;
+    color: var(--cream); background: var(--caramel); border-radius: 4px; padding: 2px 7px;
+    transform: rotate(-4deg); white-space: nowrap; }
+  .dish-img-box { position: relative; flex-shrink: 0; }
+  @keyframes ring-pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+
+  /* ---------- 详情弹窗（本次新增） ---------- */
+  .detail-mask { position: absolute; inset: 0; background: rgba(74,47,24,.5); z-index: 3;
+    display: flex; flex-direction: column; justify-content: flex-end; animation: mask-fade .24s ease-out both; }
+  .detail-sheet { background: var(--paper); border-radius: 18px 18px 0 0; overflow: hidden;
+    display: flex; flex-direction: column; padding-bottom: 10px;
+    box-shadow: 0 -8px 32px rgba(74,47,24,.18); animation: popup-rise .42s var(--ease-spring) both; }
+  .detail-hero { position: relative; width: 100%; height: 280px; flex-shrink: 0;
+    background: radial-gradient(circle at 35% 28%, #FBE3B0 0%, #F0C87A 48%, #DD9E52 100%);
+    display: flex; align-items: center; justify-content: center; font-size: 116px; }
+  .detail-close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,253,246,.88); color: var(--brown); font-size: 14px; font-weight: 700; line-height: 1;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(180,120,50,.2); }
+  .detail-body { flex: 1; min-height: 0; padding: 16px 18px 14px; }
+  .detail-name { font-size: 20px; font-weight: 800; color: var(--brown); letter-spacing: 1px; line-height: 1.4; }
+  .detail-footer { flex-shrink: 0; padding: 0 18px; }
+  .detail-add { height: 48px; border-radius: var(--r-pill); display: flex; align-items: center;
+    justify-content: center; background: linear-gradient(135deg, #F7C948, #F5A623); color: var(--ink);
+    font-size: 16px; font-weight: 800; letter-spacing: 1.5px; box-shadow: var(--shadow-pop); }
+
+  /* 纯展示用：店主端对比图里的大图换成另一道菜 */
+  .detail-hero.green { background: radial-gradient(circle at 35% 28%, #DCEFD7 0%, #A9D5A0 50%, #7FB877 100%); }
+
+  @keyframes mask-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes popup-rise { from { transform: translateY(100%); } to { transform: none; } }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>呼噜点餐 · 菜品详情弹窗</h1>
+  <p>点餐页点击菜品图片展开 · 只保留大图 / 名称 / 加入购物车</p>
+  <div class="dots">· · ·</div>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 顾客端 ============ -->
+  <div class="unit">
+    <div class="phone-label">顾客端 · 点图片展开详情</div>
+    <div class="phone">
+      <div class="banner">
+        <div class="brand-left">
+          <div class="brand-logo">🐷</div>
+          <div>
+            <div class="brand-title">呼噜点餐</div>
+            <div class="brand-sub">今日好好吃饭，明天好好生活</div>
+          </div>
+        </div>
+        <div class="stamp"><span class="si">🐷</span><span class="st">营业中</span></div>
+      </div>
+
+      <div class="catalog">
+        <div class="cate-menu">
+          <div class="cate-item active">全部</div>
+          <div class="cate-item">热菜</div>
+          <div class="cate-item">凉菜</div>
+          <div class="cate-item">汤羹</div>
+        </div>
+        <div class="dish-pane">
+          <div class="group-wrap">
+            <div class="group-header">
+              <div class="group-name">热菜</div>
+              <div class="group-line"></div>
+              <div class="group-count">3 道</div>
+            </div>
+
+            <div class="dish-card">
+              <div class="dish-img-box">
+                <div class="dish-img">🍲</div>
+                <div class="tap-ring"></div>
+                <div class="tap-tag">点图片</div>
+              </div>
+              <div class="dish-info">
+                <div>
+                  <div class="dish-name-row">
+                    <span class="dish-name">红烧狮子头</span>
+                    <span class="order-count">已点 12 次</span>
+                  </div>
+                  <div class="stars">
+                    <span class="star on">★</span><span class="star on">★</span><span class="star on">★</span>
+                    <span class="star on">★</span><span class="star">★</span>
+                  </div>
+                </div>
+                <div class="dish-bottom">
+                  <div class="stepper">
+                    <div class="step-btn">−</div><div class="step-num">2</div><div class="step-btn add">+</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dish-card">
+              <div class="dish-img-box">
+                <div class="dish-img alt">🐟</div>
+              </div>
+              <div class="dish-info">
+                <div>
+                  <div class="dish-name-row"><span class="dish-name">清蒸鲈鱼</span></div>
+                  <div class="stars">
+                    <span class="star on">★</span><span class="star on">★</span><span class="star on">★</span>
+                    <span class="star on">★</span><span class="star on">★</span>
+                  </div>
+                </div>
+                <div class="dish-bottom">
+                  <div class="stepper"><div class="step-btn add">+</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dish-card">
+              <div class="dish-img-box">
+                <div class="dish-img alt2">🥦</div>
+              </div>
+              <div class="dish-info">
+                <div>
+                  <div class="dish-name-row"><span class="dish-name">蒜蓉西兰花</span></div>
+                  <div class="stars">
+                    <span class="star on">★</span><span class="star on">★</span><span class="star on">★</span>
+                    <span class="star">★</span><span class="star">★</span>
+                  </div>
+                </div>
+                <div class="dish-bottom">
+                  <div class="stepper"><div class="step-btn add">+</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cart-bar">
+        <div class="cart-icon-plate">🛒</div>
+        <div class="cart-total">已选 <b style="color:var(--caramel);font-size:18px">3</b> 份</div>
+        <div class="cart-submit">去下单</div>
+      </div>
+
+      <!-- 详情弹窗 -->
+      <div class="detail-mask">
+        <div class="detail-sheet">
+          <div class="detail-hero">
+            🍲
+            <div class="detail-close">✕</div>
+          </div>
+          <div class="detail-body">
+            <div class="detail-name">红烧狮子头</div>
+          </div>
+          <div class="detail-footer">
+            <div class="detail-add">加入购物车</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      · 点<b>图片</b>打开（图片会缩一下做按压反馈），点卡片其它位置不触发<br>
+      · 弹窗只有三样：<b>大图 · 名称 · 加入购物车</b>，没有价格/评分/描述区<br>
+      · 图片固定高度 280px（560rpx）用 <code>aspectFill</code> 铺满，菜品图只有一张，不做轮播<br>
+      · 点 ✕ 或点遮罩关闭；点弹窗内容区不会误关<br>
+      · 加购后弹窗<b>不关</b>，便于连续加份，用 toast「已加入购物车」反馈
+    </div>
+  </div>
+
+  <!-- ============ 店主端 ============ -->
+  <div class="unit">
+    <div class="phone-label">店主端 · 只看图，不出按钮</div>
+    <div class="phone">
+      <div class="banner">
+        <div class="brand-left">
+          <div class="brand-logo">🐷</div>
+          <div>
+            <div class="brand-title">呼噜点餐</div>
+            <div class="brand-sub">今日好好吃饭，明天好好生活</div>
+          </div>
+        </div>
+        <div class="stamp"><span class="si">🐷</span><span class="st">营业中</span></div>
+      </div>
+
+      <div class="catalog">
+        <div class="cate-menu">
+          <div class="cate-item active">全部</div>
+          <div class="cate-item">热菜</div>
+          <div class="cate-item">凉菜</div>
+          <div class="cate-item">汤羹</div>
+        </div>
+        <div class="dish-pane">
+          <div class="group-wrap">
+            <div class="group-header">
+              <div class="group-name">热菜</div>
+              <div class="group-line"></div>
+              <div class="group-count">2 道</div>
+            </div>
+
+            <div class="dish-card">
+              <div class="dish-img-box"><div class="dish-img alt">🐟</div></div>
+              <div class="dish-info">
+                <div>
+                  <div class="dish-name-row"><span class="dish-name">清蒸鲈鱼</span></div>
+                  <div class="stars">
+                    <span class="star on">★</span><span class="star on">★</span><span class="star on">★</span>
+                    <span class="star on">★</span><span class="star on">★</span>
+                  </div>
+                </div>
+                <div class="dish-bottom"></div>
+              </div>
+            </div>
+
+            <div class="dish-card">
+              <div class="dish-img-box"><div class="dish-img alt2">🥦</div></div>
+              <div class="dish-info">
+                <div>
+                  <div class="dish-name-row"><span class="dish-name">蒜蓉西兰花</span></div>
+                  <div class="stars">
+                    <span class="star on">★</span><span class="star on">★</span><span class="star on">★</span>
+                    <span class="star">★</span><span class="star">★</span>
+                  </div>
+                </div>
+                <div class="dish-bottom"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 详情弹窗（无加购按钮、无购物车条，与现有逻辑一致） -->
+      <div class="detail-mask">
+        <div class="detail-sheet">
+          <div class="detail-hero green">
+            🐟
+            <div class="detail-close">✕</div>
+          </div>
+          <div class="detail-body">
+            <div class="detail-name">清蒸鲈鱼</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      · 店主本来就不点餐（卡片上没有步进器），所以详情里也<b>不出现</b>加入购物车<br>
+      · 判据与列表一致：<code>roleReady &amp;&amp; !isOwner</code><br>
+      · 访客（未接受邀请）仍能看到按钮，和卡片上「能加购、下单时再拦」的现有行为保持一致
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

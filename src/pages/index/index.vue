@@ -152,6 +152,31 @@ function addDish(dish: Dish) {
   cart.add(dish)
 }
 
+/* ==================== 菜品详情弹窗 ==================== */
+
+/**
+ * 点菜品图片打开：只展示「大图 + 名称 + 加入购物车」。
+ * 本项目菜品没有价格、没有评价、也不做上下架，详情里就没有可补充的信息，
+ * 因此不铺价格/评分/描述区 —— 保持一张大图 + 名称 + 一个行动按钮。
+ * 图源与列表卡片共用同一条降级链：临时链接 → fileID → 占位图。
+ */
+const detailDish = ref<Dish | null>(null)
+
+function openDetail(dish: Dish) {
+  detailDish.value = dish
+}
+
+function closeDetail() {
+  detailDish.value = null
+}
+
+/** 详情内加购：不关弹窗，方便连续加份；用 toast 做反馈（购物车条被弹窗挡住，看不到数字变化） */
+function addFromDetail() {
+  if (!detailDish.value) return
+  cart.add(detailDish.value)
+  uni.showToast({ title: '已加入购物车', icon: 'none' })
+}
+
 /* ==================== 提交订单 ==================== */
 
 /** 「去下单」/「提交订单」：先弹确认弹窗展示已选菜品 */
@@ -308,11 +333,19 @@ onShareAppMessage(() => ({ title: '一起点餐吧', path: '/pages/index/index' 
             </view>
 
             <view v-for="dish in group.dishes" :key="dish._id" class="dish-card">
-              <image
-                class="dish-img"
-                :src="dish.imageSrc || dish.imageUrl || '/static/images/placeholder.png'"
-                mode="aspectFill"
-              />
+              <!-- 图片是详情入口：<image> 不支持 hover-class，包一层 view 拿按压反馈 -->
+              <view
+                class="dish-img-wrap"
+                hover-class="sticker-press"
+                hover-stay-time="80"
+                @tap="openDetail(dish)"
+              >
+                <image
+                  class="dish-img"
+                  :src="dish.imageSrc || dish.imageUrl || '/static/images/placeholder.png'"
+                  mode="aspectFill"
+                />
+              </view>
               <view class="dish-info">
                 <view class="dish-name-row">
                   <text class="dish-name">{{ dish.name }}</text>
@@ -473,6 +506,41 @@ onShareAppMessage(() => ({ title: '一起点餐吧', path: '/pages/index/index' 
         <view class="confirm-actions">
           <view class="confirm-btn cancel" hover-class="text-press" hover-stay-time="80" @tap="showConfirm = false">取消</view>
           <view class="confirm-btn ok" hover-class="cta-press" hover-stay-time="80" @tap="confirmOrder">确认下单</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 菜品详情弹窗（点菜品图片打开）
+         内容刻意只有三样：大图 / 名称 / 加入购物车。
+         本项目菜品没有价格、没有评价，铺价格栏或评分区只会是空壳。 -->
+    <view v-if="detailDish" class="detail-mask" @tap="closeDetail">
+      <view class="detail-sheet" @tap.stop="noop">
+        <view class="detail-hero">
+          <image
+            class="detail-img"
+            :src="detailDish.imageSrc || detailDish.imageUrl || '/static/images/placeholder.png'"
+            mode="aspectFill"
+          />
+          <view
+            class="detail-close"
+            hover-class="text-press"
+            hover-stay-time="80"
+            @tap="closeDetail"
+          >✕</view>
+        </view>
+
+        <view class="detail-body">
+          <text class="detail-name">{{ detailDish.name }}</text>
+        </view>
+
+        <!-- 店主不点餐，详情里就只剩大图和名称 -->
+        <view v-if="userStore.roleReady && !userStore.isOwner" class="detail-footer">
+          <view
+            class="detail-add"
+            hover-class="cta-press"
+            hover-stay-time="80"
+            @tap="addFromDetail"
+          >加入购物车</view>
         </view>
       </view>
     </view>
@@ -716,6 +784,14 @@ onShareAppMessage(() => ({ title: '一起点餐吧', path: '/pages/index/index' 
 .dish-card:nth-child(5) { animation-delay: 330ms; }
 .dish-card:nth-child(n+6) { animation-delay: 390ms; }
 
+/* 图片外层：<image> 在小程序里不支持 hover-class，包一层 view 才有按压反馈。
+   尺寸与 .dish-img 一致，这样它就是 .dish-card 的 flex 子节点（原来是 image 自己）。 */
+.dish-img-wrap {
+  width: 180rpx;
+  height: 180rpx;
+  flex-shrink: 0;
+  border-radius: 20rpx;
+}
 .dish-img {
   width: 180rpx;
   height: 180rpx;
@@ -1217,6 +1293,98 @@ onShareAppMessage(() => ({ title: '一起点餐吧', path: '/pages/index/index' 
   background: linear-gradient(135deg, #F7C948, #F5A623);
   color: var(--ink);
   box-shadow: var(--shadow-pop);
+}
+
+/* ========== 菜品详情弹窗 ========== */
+/* 底部抽屉而非居中弹窗：详情以一张大图为主角，从底部升起更贴合「翻看菜品」的心智，
+   也和购物车弹窗共用同一套入场语言（mask-fade + popup-rise）。 */
+.detail-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(74, 47, 24, 0.5);
+  /* 夹在购物车弹窗(30) 与确认弹窗(40) 之间；能从列表打开，不会被底部购物车条(20) 盖住 */
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: mask-fade 240ms ease-out both;
+}
+.detail-sheet {
+  background: var(--paper);
+  border-radius: 36rpx 36rpx 0 0;
+  /* 大图要贴齐顶部圆角，靠这里裁 */
+  overflow: hidden;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  animation: popup-rise 420ms var(--ease-spring) both;
+}
+/* 大图：定高 + aspectFill（铺满不留边），与参考布局一致。
+   菜品图只会有一张，所以不用 swiper，一个 image 就够。 */
+.detail-hero {
+  position: relative;
+  width: 100%;
+  height: 560rpx;
+  flex-shrink: 0;
+  background: var(--yellow-mist);
+}
+.detail-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* 关闭按钮压在图上：半透明奶白底 + 棕字，换任何菜品图都读得清 */
+.detail-close {
+  position: absolute;
+  top: 24rpx;
+  right: 24rpx;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: rgba(255, 253, 246, 0.88);
+  color: var(--brown);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(180, 120, 50, 0.2);
+}
+.detail-body {
+  flex: 1;
+  min-height: 0;
+  padding: 32rpx 36rpx 28rpx;
+}
+.detail-name {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: var(--brown);
+  letter-spacing: 2rpx;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.detail-footer {
+  flex-shrink: 0;
+  padding: 0 36rpx;
+}
+.detail-add {
+  height: 96rpx;
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, #F7C948, #F5A623);
+  color: var(--ink);
+  font-size: 32rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-pop);
+  transition: transform var(--dur-fast) ease-out;
 }
 
 /* ========== 入场与循环动效 ========== */

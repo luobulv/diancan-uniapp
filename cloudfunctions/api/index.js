@@ -346,6 +346,128 @@ async function listOrders(baseWhere, event) {
   }
 }
 
+/**
+ * 取单个订单。
+ *
+ * ⚠️ `doc(id).get()` 在文档不存在时的行为**不稳定**（老版本抛异常、新版本回 data:null），
+ * 所以统一 catch 成 null —— 调用方只判断 null，不用去猜是哪一种。
+ */
+async function getOrderById(id) {
+  try {
+    const res = await db.collection('orders').doc(id).get()
+    return res && res.data ? res.data : null
+  } catch (e) {
+    return null
+  }
+}
+
+/**
+ * 订单菜品行的归一化 + 校验（order.create 与 order.update 共用）。
+ *
+ * 抽出来是为了让「改单」走和「下单」**完全同一套**规则 —— 否则店主改单会变成
+ * 绕过上限校验的后门（比如把某道菜改成 9999 份，把 dishes.orderCount 刷爆）。
+ *
+ * 返回 { error } 表示校验未通过，{ items } 是归一化结果：
+ * 同 dishId 已合并、名称一律取**服务端**菜名（客户端传的不可信）。
+ */
+async function normalizeOrderItems(rawItems) {
+  const list = Array.isArray(rawItems) ? rawItems : []
+  if (list.length === 0) return { error: '订单为空' }
+  if (list.length > MAX_ORDER_ITEMS) {
+    return { error: `一次最多点 ${MAX_ORDER_ITEMS} 道菜` }
+  }
+
+  // 逐项归一化。原来 quantity 完全不校验 —— 客户端可以传 999999 把
+  // dishes.orderCount 刷爆，也可以提交超长数组让下面那个循环连打几千次库。
+  const merged = new Map()
+  for (const it of list) {
+    const dishId = clip(it && it.dishId, MAX_ID_LEN)
+    const name = clip(it && it.name, MAX_NAME_LEN)
+    const quantity = Number(it && it.quantity)
+    if (!dishId || !name) return { error: '订单数据不完整' }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_ITEM_QTY) {
+      return { error: `每道菜数量需为 1~${MAX_ITEM_QTY} 的整数` }
+    }
+    // 同一道菜出现多次就合并，避免拆成多行绕过上面的数量上限
+    const prev = merged.get(dishId)
+    const total = (prev ? prev.quantity : 0) + quantity
+    if (total > MAX_ITEM_QTY) {
+      return { error: `每道菜最多 ${MAX_ITEM_QTY} 份` }
+    }
+    merged.set(dishId, { dishId, name, quantity: total })
+  }
+  const normItems = Array.from(merged.values())
+
+  // 校验菜品是否还在库，并**用服务端的菜名覆盖客户端传来的名字**。
+  // 原来这里只判断 dishId 非空：店主把菜删掉之后，顾客购物车里的旧数据
+  // 仍然能下单成功（订单里留着一条永远点不到的菜），名字也可以随便伪造。
+  const ids = normItems.map(it => it.dishId)
+  const dishRes = await db.collection('dishes')
+    .where({ _id: _.in(ids) })
+    .limit(ids.length)
+    .get()
+  const dishMap = new Map(dishRes.data.map(d => [d._id, d]))
+  // 顺手把「缺了哪几道」也带回去：顾客下单时用不上，但店主改单时
+  // 光看到「请刷新菜单后重新下单」是不知道该怎么办的（见 order.update）
+  const missing = normItems.filter(it => !dishMap.has(it.dishId)).map(it => it.name)
+  if (missing.length > 0) {
+    return { error: '订单里有菜品已被删除，请刷新菜单后重新下单', missing }
+  }
+
+  return {
+    items: normItems.map(it => ({
+      dishId: it.dishId,
+      name: clip(dishMap.get(it.dishId).name, MAX_NAME_LEN) || it.name,
+      quantity: it.quantity
+    }))
+  }
+}
+
+/**
+ * 按订单改动调整菜品的「已点 N 次」计数。
+ *
+ * 传 (旧 items, 新 items)，只对**变化量**做增减：
+ *  - 改单：同一道菜改份数只动差值，不会重复计数；只改备注时 delta 全为 0，直接返回；
+ *  - 删单：新 items 传空数组，等于把这一单贡献的份数全额退回。
+ *
+ * 计数只能靠 `_.inc()` 原子自增，不能一律「读出来算好再写回」：
+ * 下单那条路径用的就是 `_.inc`，如果这里用绝对值写回，两边同时发生就会互相盖掉。
+ * 但 `_.inc` 又无法夹到 0，而历史订单本来就没累加过计数（老数据），
+ * 直接 inc 负数会把计数打穿。所以分两路：
+ *   结果 >= 0 → 走 `_.inc(delta)`，原子、不会覆盖并发写入；
+ *   结果 < 0  → 才退回绝对值写回，把计数夹在 0（极少数情况，慢一点无所谓）。
+ */
+async function applyOrderCountDelta(oldItems, newItems) {
+  const delta = new Map()
+  const bump = (id, n) => {
+    if (!id) return
+    delta.set(id, (delta.get(id) || 0) + n)
+  }
+  ;(oldItems || []).forEach(it => bump(it.dishId, -(Number(it.quantity) || 0)))
+  ;(newItems || []).forEach(it => bump(it.dishId, Number(it.quantity) || 0))
+
+  const ids = [...delta.keys()].filter(id => delta.get(id) !== 0)
+  if (ids.length === 0) return
+
+  const res = await db.collection('dishes')
+    .where({ _id: _.in(ids) })
+    .limit(ids.length)
+    .get()
+  const dishMap = new Map(res.data.map(d => [d._id, d]))
+
+  await Promise.all(ids.map(id => {
+    const dish = dishMap.get(id)
+    // 菜品已被删掉：没有计数可调，静默跳过（不能让删单因为一道菜没了就失败）
+    if (!dish) return Promise.resolve()
+    const d = delta.get(id)
+    const cur = Number(dish.orderCount) || 0
+    if (cur + d >= 0) {
+      return db.collection('dishes').doc(id).update({ data: { orderCount: _.inc(d) } }).catch(() => {})
+    }
+    return db.collection('dishes').doc(id).update({ data: { orderCount: 0 } }).catch(() => {})
+  }))
+}
+
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
   const action = event.action
@@ -560,50 +682,11 @@ exports.main = async (event, context) => {
         if (user.role === 'guest') return { code: 403, msg: '请先接受邀请后再点餐' }
 
         const { remark } = event
-        const rawItems = Array.isArray(event.items) ? event.items : []
-        if (rawItems.length === 0) return { code: 400, msg: '订单为空' }
-        if (rawItems.length > MAX_ORDER_ITEMS) {
-          return { code: 400, msg: `一次最多点 ${MAX_ORDER_ITEMS} 道菜` }
-        }
-
-        // 逐项归一化。原来 quantity 完全不校验 —— 客户端可以传 999999 把
-        // dishes.orderCount 刷爆，也可以提交超长数组让下面那个循环连打几千次库。
-        const merged = new Map()
-        for (const it of rawItems) {
-          const dishId = clip(it && it.dishId, MAX_ID_LEN)
-          const name = clip(it && it.name, MAX_NAME_LEN)
-          const quantity = Number(it && it.quantity)
-          if (!dishId || !name) return { code: 400, msg: '订单数据不完整' }
-          if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_ITEM_QTY) {
-            return { code: 400, msg: `每道菜数量需为 1~${MAX_ITEM_QTY} 的整数` }
-          }
-          // 同一道菜出现多次就合并，避免拆成多行绕过上面的数量上限
-          const prev = merged.get(dishId)
-          const total = (prev ? prev.quantity : 0) + quantity
-          if (total > MAX_ITEM_QTY) {
-            return { code: 400, msg: `每道菜最多 ${MAX_ITEM_QTY} 份` }
-          }
-          merged.set(dishId, { dishId, name, quantity: total })
-        }
-        const normItems = Array.from(merged.values())
-
-        // 校验菜品是否还在库，并**用服务端的菜名覆盖客户端传来的名字**。
-        // 原来这里只判断 dishId 非空：店主把菜删掉之后，顾客购物车里的旧数据
-        // 仍然能下单成功（订单里留着一条永远点不到的菜），名字也可以随便伪造。
-        const ids = normItems.map(it => it.dishId)
-        const dishRes = await db.collection('dishes')
-          .where({ _id: _.in(ids) })
-          .limit(ids.length)
-          .get()
-        const dishMap = new Map(dishRes.data.map(d => [d._id, d]))
-        if (ids.some(id => !dishMap.has(id))) {
-          return { code: 400, msg: '订单里有菜品已被删除，请刷新菜单后重新下单' }
-        }
-        const finalItems = normItems.map(it => ({
-          dishId: it.dishId,
-          name: clip(dishMap.get(it.dishId).name, MAX_NAME_LEN) || it.name,
-          quantity: it.quantity
-        }))
+        // 菜品行的归一化与校验走 normalizeOrderItems —— 与 order.update 共用同一套规则，
+        // 免得「改单」变成绕过上限的后门。
+        const norm = await normalizeOrderItems(event.items)
+        if (norm.error) return { code: 400, msg: norm.error }
+        const finalItems = norm.items
 
         const orderRes = await db.collection('orders').add({
           data: {
@@ -651,6 +734,57 @@ exports.main = async (event, context) => {
         // 白名单校验，避免写入任意字符串把订单变成筛选项都匹配不到的状态
         if (!ORDER_STATUS.includes(event.status)) return { code: 400, msg: '非法的订单状态' }
         await db.collection('orders').doc(id).update({ data: { status: event.status } })
+        return { code: 0 }
+      }
+      case 'order.update': {
+        // 店主改单：整单菜品（加/减/改份数）+ 备注。改的是内容，不动状态。
+        if (!isOwner) return { code: 403, msg: '无权限' }
+        const id = clip(event.id, MAX_ID_LEN)
+        if (!id) return { code: 400, msg: '缺少订单 id' }
+
+        // 先读旧单：一是确认订单真的还在（删过的单不该还能改），
+        // 二是拿到旧 items 才能算出菜品计数的差值。
+        const old = await getOrderById(id)
+        if (!old) return { code: 404, msg: '订单不存在或已被删除' }
+
+        // 与 order.create 共用同一套归一化 + 上限校验，
+        // 否则「店主改单」就是一个绕过 MAX_ITEM_QTY 的后门。
+        const norm = await normalizeOrderItems(event.items)
+        if (norm.error) {
+          // 「菜已从菜单删除」在下单链路里的提示是写给顾客的（让他重下一单），
+          // 改单链路里店主需要的是「把这行减掉」，所以这里换成可执行的措辞。
+          if (norm.missing && norm.missing.length > 0) {
+            return {
+              code: 400,
+              msg: `「${norm.missing.join('、')}」已从菜单删除，请先把它从这单里减掉`
+            }
+          }
+          return { code: 400, msg: norm.error }
+        }
+        const items = norm.items
+        // 备注允许清空（缺省 = 空串，与 order.create 一致）
+        const remark = clip(event.remark, MAX_REMARK_LEN)
+
+        await db.collection('orders').doc(id).update({
+          data: { items, remark, editedAt: db.serverDate() }
+        })
+        // 订单写成功之后再调计数：万一这一步出错，至少订单内容是对的。
+        // 反过来先调计数、订单再写失败的话，计数就白白跑偏了 —— 而订单才是主数据。
+        await applyOrderCountDelta(old.items, items)
+        return { code: 0, data: { items, remark } }
+      }
+      case 'order.delete': {
+        // 店主删单：真删（remove），并把这一单贡献的份数从菜品计数里退回。
+        if (!isOwner) return { code: 403, msg: '无权限' }
+        const id = clip(event.id, MAX_ID_LEN)
+        if (!id) return { code: 400, msg: '缺少订单 id' }
+
+        const old = await getOrderById(id)
+        if (!old) return { code: 404, msg: '订单不存在或已被删除' }
+
+        await db.collection('orders').doc(id).remove()
+        // 新 items 传空数组 = 把这一单的份数全额退回（计数夹在 0 以上，见该函数注释）
+        await applyOrderCountDelta(old.items, [])
         return { code: 0 }
       }
 

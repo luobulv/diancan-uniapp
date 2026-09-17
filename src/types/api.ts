@@ -7,6 +7,7 @@
  *   dish.list / dish.add / dish.update / dish.delete
  *   invite.create / invite.list / invite.accept
  *   order.create / order.listMine / order.listAll / order.updateStatus
+ *   order.update（店主改内容）/ order.delete（店主删单）
  *   stats.heatmap / stats.get
  */
 
@@ -70,6 +71,11 @@ export interface Order {
   status: OrderStatus
   /** 订阅消息是否推送成功 */
   notified?: boolean
+  /**
+   * 店主改过这一单的内容的时间（order.update 写入）。
+   * 只作为「这单被动过」的标记展示 —— 内容以 items 为准，它不参与任何计算。
+   */
+  editedAt?: string
   createdAt: string
 }
 

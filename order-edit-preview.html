@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>呼噜点餐 · 店主改单 / 删单预览</title>
+<style>
+  /* 令牌与小程序 app.wxss 同源；比例 1rpx = 0.5px */
+  :root {
+    --cream: #FFF8E7; --cream-deep: #FBF0D2; --paper: #FFFDF6;
+    --yellow: #F7C948; --yellow-mist: #FBEEC9; --yellow-soft: #FDF3D6;
+    --amber: #F5A623; --caramel: #D9822B; --brown: #6B4423;
+    --ink: #4A2F18; --tan: #8B5A2B; --sand: #B98A4A; --line: #F1E3BC;
+    --danger: #e64340;
+    --r-pill: 999px;
+    --shadow-sm: 0 1px 4px rgba(180,120,50,.08);
+    --shadow-pop: 0 6px 16px rgba(245,166,35,.30);
+    --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #FFF8E7 0%, #FBF0D2 60%, #F7E9C4 100%);
+    min-height: 100vh; padding: 40px 24px 64px; color: var(--ink);
+  }
+
+  .head { text-align: center; margin-bottom: 34px; }
+  .head h1 { font-size: 26px; font-weight: 800; letter-spacing: 2px; color: var(--brown); }
+  .head p { font-size: 13px; color: var(--tan); margin-top: 8px; letter-spacing: 1px; }
+  .head .dots { color: var(--sand); letter-spacing: 6px; margin-top: 10px; font-size: 12px; }
+
+  .stage { display: flex; flex-wrap: wrap; gap: 34px; justify-content: center; align-items: flex-start; }
+  .unit { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .phone-label { font-size: 13px; font-weight: 700; color: var(--brown); letter-spacing: 2px;
+    background: var(--paper); border: 1.5px dashed var(--line); border-radius: 999px; padding: 5px 18px; }
+  /* 375px 是内容区宽度，左右各 8px 边框由 border-box 计入 → 外框写 391px */
+  .phone {
+    width: 391px; height: 736px; background: var(--cream);
+    border-radius: 44px; border: 8px solid #6B4423;
+    box-shadow: 0 32px 64px rgba(107,68,35,.22);
+    overflow: hidden; position: relative; display: flex; flex-direction: column;
+  }
+  .phone::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background-image: radial-gradient(rgba(245,166,35,.07) 1px, transparent 1px); background-size: 24px 24px; }
+  .notes { width: 375px; font-size: 12px; line-height: 1.9; color: var(--tan);
+    background: var(--paper); border-radius: 14px; padding: 12px 16px; border: 1.5px dashed var(--line); }
+  .notes b { color: var(--caramel); font-weight: 700; }
+  .notes code { background: var(--yellow-soft); border-radius: 4px; padding: 1px 5px; color: var(--brown); font-size: 11px; }
+
+  .page { padding: 10px; }
+
+  /* ---------- 筛选栏 ---------- */
+  .filter-bar { display: flex; background: var(--paper); border-radius: 20px; padding: 4px;
+    margin-bottom: 10px; border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+  .filter-item { flex: 1; text-align: center; height: 32px; line-height: 32px;
+    font-size: 13px; color: var(--tan); border-radius: 16px; }
+  .filter-item.active { background: linear-gradient(135deg, var(--yellow), var(--amber));
+    color: var(--ink); font-weight: 700; box-shadow: var(--shadow-pop); }
+  .count-bar { padding: 0 4px 8px; font-size: 12px; color: var(--tan); }
+
+  /* ---------- 订单卡片 ---------- */
+  .order-card { background: var(--paper); border-radius: 10px; padding: 12px; margin-bottom: 10px;
+    box-shadow: var(--shadow-sm); border: 1px solid rgba(241,227,188,.6); }
+  .order-head { display: flex; align-items: center; justify-content: space-between; }
+  .order-user { display: flex; align-items: center; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--yellow-mist);
+    margin-right: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .user-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .order-time-box { display: flex; align-items: center; }
+  .order-time { font-size: 12px; color: var(--tan); }
+  .order-edited { font-size: 11px; color: var(--caramel); background: var(--yellow-soft);
+    border-radius: 3px; padding: 1px 5px; margin-right: 5px; }
+  .order-items { font-size: 14px; color: var(--ink); margin: 8px 0 4px; line-height: 1.6; }
+  .order-remark { font-size: 12px; color: var(--tan); }
+  .order-foot { display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 8px; }
+  .order-actions { display: flex; align-items: center; }
+  .status-text { font-size: 13px; color: var(--tan); }
+  .act { font-size: 13px; padding: 5px 14px; border-radius: 14px; margin-left: 7px; font-weight: 600; }
+  .act.done { background: linear-gradient(135deg, var(--yellow), var(--amber)); color: var(--ink); box-shadow: var(--shadow-pop); }
+  .act.cancel { background: var(--cream-deep); color: var(--tan); }
+  .order-tools { display: flex; align-items: center; }
+  .tool { font-size: 13px; color: var(--caramel); padding: 5px 0 5px 14px; }
+  .tool.danger { color: var(--danger); }
+  /* 纯标注：把新增的入口圈出来。虚线只描边，不遮挡卡片上的文字 */
+  .ring-box { border: 1.5px dashed var(--caramel); border-radius: 8px; padding: 3px 8px 3px 6px; }
+  .ring-box .tool:first-child { padding-left: 0; }
+
+  /* ---------- 弹窗 ---------- */
+  .mask { position: absolute; inset: 0; background: rgba(74,47,24,.5); z-index: 3;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    animation: mask-fade .24s ease-out both; }
+  .form-panel { background: var(--paper); border-radius: 12px 12px 0 0; display: flex;
+    flex-direction: column; max-height: 92%; animation: popup-rise .42s var(--ease-spring) both; }
+  .form-header { display: flex; align-items: center; justify-content: space-between;
+    padding: 15px; border-bottom: 1px dashed var(--line); }
+  .form-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .form-close { font-size: 16px; color: var(--tan); }
+  .form-inner { padding: 5px 15px; }
+  .form-footer { display: flex; padding: 10px 15px; border-top: 1px dashed var(--line); }
+  .btn-cancel { flex: 1; height: 42px; line-height: 42px; text-align: center;
+    background: var(--cream-deep); color: var(--tan); border-radius: 8px;
+    margin-right: 10px; font-size: 15px; }
+  .btn-save { flex: 2; height: 42px; line-height: 42px; text-align: center;
+    background: linear-gradient(135deg, var(--yellow), var(--amber)); color: var(--ink);
+    border-radius: 8px; font-size: 15px; font-weight: 700; box-shadow: var(--shadow-pop); }
+
+  .edit-hint { font-size: 12px; color: var(--tan); padding: 10px 0 4px; }
+  .edit-empty { margin-top: 10px; padding: 15px 12px; background: var(--yellow-soft);
+    border-radius: 8px; font-size: 12px; line-height: 1.7; color: var(--tan); }
+  .edit-row { display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 0; border-bottom: 1px dashed var(--line); }
+  .edit-name { flex: 1; font-size: 14px; color: var(--ink); margin-right: 10px; }
+  .stepper { display: flex; align-items: center; flex-shrink: 0; }
+  .step-btn { width: 28px; height: 28px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 17px; line-height: 1;
+    background: var(--cream-deep); color: var(--tan); }
+  .step-btn.add { background: linear-gradient(135deg, var(--yellow), var(--amber));
+    color: var(--ink); font-weight: 700; box-shadow: var(--shadow-pop); }
+  .step-num { min-width: 36px; text-align: center; font-size: 15px; font-weight: 700; color: var(--caramel); }
+  .add-dish { margin: 13px 0 3px; height: 42px; line-height: 42px; text-align: center;
+    border-radius: 8px; border: 1px dashed var(--caramel); color: var(--caramel);
+    font-size: 14px; font-weight: 600; }
+  .field { margin: 13px 0; }
+  .label { display: block; font-size: 13px; color: var(--tan); margin-bottom: 7px; }
+  .input { height: 42px; line-height: 42px; background: var(--yellow-soft); border-radius: 8px;
+    padding: 0 12px; font-size: 14px; color: var(--tan); }
+
+  .sheet-panel { background: var(--paper); border-radius: 12px 12px 0 0; max-height: 74%;
+    display: flex; flex-direction: column; animation: popup-rise .42s var(--ease-spring) both; }
+  .sheet-header { display: flex; align-items: center; justify-content: space-between;
+    padding: 15px; border-bottom: 1px dashed var(--line); }
+  .sheet-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .sheet-close { font-size: 16px; color: var(--tan); }
+  .sheet-body { padding: 4px 0; overflow: hidden; }
+  .sheet-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px dashed var(--line); }
+  .sheet-item:last-child { border-bottom: none; }
+  .sheet-thumb { width: 36px; height: 36px; border-radius: 7px; flex-shrink: 0;
+    border: 1px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 19px; }
+  .t1 { background: radial-gradient(circle at 35% 28%, #FBE3B0 0%, #F0C87A 48%, #DD9E52 100%); }
+  .t2 { background: radial-gradient(circle at 35% 28%, #DCEFD7 0%, #A9D5A0 50%, #7FB877 100%); }
+  .t3 { background: radial-gradient(circle at 35% 28%, #F7DCD0 0%, #E9A98F 50%, #D07F5F 100%); }
+  .t4 { background: radial-gradient(circle at 35% 28%, #E7E1F7 0%, #BFAFE8 50%, #9B87D6 100%); }
+  .sheet-item-name { flex: 1; margin-left: 10px; font-size: 14px; color: var(--ink); }
+  .sheet-add { flex-shrink: 0; font-size: 16px; color: var(--caramel); font-weight: 700; }
+  .sheet-footer { padding: 10px 15px; border-top: 1px dashed var(--line); }
+  .sheet-footer .btn-save { width: 100%; flex: none; }
+
+  /* 标注 */
+  .pin { position: absolute; z-index: 6; font-size: 10px; font-weight: 700; color: var(--cream);
+    background: var(--caramel); border-radius: 4px; padding: 2px 7px; white-space: nowrap;
+    transform: rotate(-3deg); box-shadow: 0 2px 6px rgba(107,68,35,.25); }
+  .pin.right { right: 12px; }
+  .ring { position: absolute; z-index: 5; border: 2px dashed var(--caramel); border-radius: 12px;
+    animation: ring-pulse 1.6s ease-in-out infinite; }
+  @keyframes ring-pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+  @keyframes mask-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes popup-rise { from { transform: translateY(100%); } to { transform: none; } }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>呼噜点餐 · 店主改单 / 删单</h1>
+  <p>订单管理页新增「编辑 · 删除」，改单走服务端 order.update</p>
+  <div class="dots">· · ·</div>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 1. 列表上的入口 ============ -->
+  <div class="unit">
+    <div class="phone-label">① 订单卡片上多出两个入口</div>
+    <div class="phone">
+      <div class="page">
+        <div class="filter-bar">
+          <div class="filter-item active">全部</div>
+          <div class="filter-item">待处理</div>
+          <div class="filter-item">已完成</div>
+          <div class="filter-item">已取消</div>
+        </div>
+        <div class="count-bar">共 12 单</div>
+
+        <div class="order-card">
+          <div class="order-head">
+            <div class="order-user">
+              <div class="user-avatar">🧑</div>
+              <span class="user-name">小明</span>
+            </div>
+            <div class="order-time-box">
+              <span class="order-edited">已改过</span>
+              <span class="order-time">09-17 12:04</span>
+            </div>
+          </div>
+          <div class="order-items">红烧狮子头×2、清蒸鲈鱼×1</div>
+          <div class="order-remark">备注：少放辣</div>
+          <div class="order-foot">
+            <div class="order-actions">
+              <span class="act done">完成</span>
+              <span class="act cancel">取消</span>
+            </div>
+            <div class="order-tools ring-box">
+              <span class="tool">编辑</span>
+              <span class="tool danger">删除</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-card">
+          <div class="order-head">
+            <div class="order-user">
+              <div class="user-avatar">👧</div>
+              <span class="user-name">小红</span>
+            </div>
+            <div class="order-time-box">
+              <span class="order-time">09-16 19:22</span>
+            </div>
+          </div>
+          <div class="order-items">蒜蓉西兰花×1、清蒸鲈鱼×2</div>
+          <div class="order-foot">
+            <div class="order-actions"><span class="status-text">已完成</span></div>
+            <div class="order-tools">
+              <span class="tool">编辑</span>
+              <span class="tool danger">删除</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-card">
+          <div class="order-head">
+            <div class="order-user">
+              <div class="user-avatar">🧑</div>
+              <span class="user-name">老王</span>
+            </div>
+            <div class="order-time-box"><span class="order-time">09-16 12:40</span></div>
+          </div>
+          <div class="order-items">红烧狮子头×3</div>
+          <div class="order-foot">
+            <div class="order-actions"><span class="status-text">已取消</span></div>
+            <div class="order-tools">
+              <span class="tool">编辑</span>
+              <span class="tool danger">删除</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      · 虚线框里就是新增的两个入口<br>
+      · <b>编辑 / 删除</b>对任何状态都可用（待处理 / 已完成 / 已取消），所以它们不在
+      「完成 / 取消」那个 <code>v-if</code> 分支里<br>
+      · 文字型次级操作，不和主行动按钮抢视觉；删除用危险红 <code>#e64340</code><br>
+      · 被改过的单在时间旁边挂一个「<b>已改过</b>」标记 —— 顾客回头说「我没点这个」时能一眼看出来<br>
+      · 删除会弹二次确认（真删不可恢复，且会退回菜品计数）
+    </div>
+  </div>
+
+  <!-- ============ 2. 改单弹窗 ============ -->
+  <div class="unit">
+    <div class="phone-label">② 改单：加减菜 · 改份数 · 改备注</div>
+    <div class="phone">
+      <div class="page">
+        <div class="filter-bar">
+          <div class="filter-item active">全部</div>
+          <div class="filter-item">待处理</div>
+          <div class="filter-item">已完成</div>
+          <div class="filter-item">已取消</div>
+        </div>
+        <div class="count-bar">共 12 单</div>
+        <div class="order-card">
+          <div class="order-head">
+            <div class="order-user"><div class="user-avatar">🧑</div><span class="user-name">小明</span></div>
+            <div class="order-time-box"><span class="order-time">09-17 12:04</span></div>
+          </div>
+          <div class="order-items">红烧狮子头×2、清蒸鲈鱼×1</div>
+        </div>
+      </div>
+
+      <div class="mask">
+        <div class="form-panel">
+          <div class="form-header">
+            <span class="form-title">修改订单</span>
+            <span class="form-close">✕</span>
+          </div>
+          <div class="form-inner">
+            <div class="edit-hint">只改这一单的菜品和备注，订单状态不变</div>
+
+            <div class="edit-row">
+              <span class="edit-name">红烧狮子头</span>
+              <div class="stepper">
+                <div class="step-btn">−</div><span class="step-num">3</span><div class="step-btn add">＋</div>
+              </div>
+            </div>
+
+            <div class="edit-row">
+              <span class="edit-name">清蒸鲈鱼</span>
+              <div class="stepper">
+                <div class="step-btn">−</div><span class="step-num">1</span><div class="step-btn add">＋</div>
+              </div>
+            </div>
+
+            <div class="edit-row">
+              <span class="edit-name">蒜蓉西兰花</span>
+              <div class="stepper">
+                <div class="step-btn">−</div><span class="step-num">2</span><div class="step-btn add">＋</div>
+              </div>
+            </div>
+
+            <div class="add-dish">＋ 添加菜品</div>
+
+            <div class="field">
+              <span class="label">备注</span>
+              <div class="input">少放辣</div>
+            </div>
+          </div>
+          <div class="form-footer">
+            <div class="btn-cancel">取消</div>
+            <div class="btn-save">保存</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      · <b>−</b> 减到 0 就是把这行从订单里去掉（和点餐页步进器同一套语义）<br>
+      · 点<b>添加菜品</b>从菜单里挑菜加进这一单；菜名以库里为准，服务端会再覆盖一次<br>
+      · 整单被减空时保存会被拦下，提示改用「删除」<br>
+      · 保存走服务端 <code>order.update</code>，与下单调<b>同一个</b>校验函数，
+      单菜上限 99 份不会因为改单被绕过<br>
+      · 保存成功<b>就地替换该行</b>不重拉列表 —— 否则店主翻了几页之后一改单就被弹回第一页
+    </div>
+  </div>
+
+  <!-- ============ 3. 添加菜品 ============ -->
+  <div class="unit">
+    <div class="phone-label">③ 添加菜品：只列还没在这单里的</div>
+    <div class="phone">
+      <div class="page">
+        <div class="filter-bar">
+          <div class="filter-item active">全部</div>
+          <div class="filter-item">待处理</div>
+          <div class="filter-item">已完成</div>
+          <div class="filter-item">已取消</div>
+        </div>
+        <div class="count-bar">共 12 单</div>
+        <div class="order-card">
+          <div class="order-head">
+            <div class="order-user"><div class="user-avatar">🧑</div><span class="user-name">小明</span></div>
+            <div class="order-time-box"><span class="order-time">09-17 12:04</span></div>
+          </div>
+          <div class="order-items">红烧狮子头×2、清蒸鲈鱼×1</div>
+        </div>
+      </div>
+
+      <div class="mask">
+        <div class="form-panel" style="max-height:60%;opacity:.55">
+          <div class="form-header">
+            <span class="form-title">修改订单</span>
+            <span class="form-close">✕</span>
+          </div>
+          <div class="form-inner">
+            <div class="edit-hint">只改这一单的菜品和备注，订单状态不变</div>
+            <div class="edit-row">
+              <span class="edit-name">红烧狮子头</span>
+              <div class="stepper">
+                <div class="step-btn">−</div><span class="step-num">2</span><div class="step-btn add">＋</div>
+              </div>
+            </div>
+            <div class="edit-row">
+              <span class="edit-name">清蒸鲈鱼</span>
+              <div class="stepper">
+                <div class="step-btn">−</div><span class="step-num">1</span><div class="step-btn add">＋</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mask" style="background:rgba(74,47,24,.28)">
+        <div class="sheet-panel">
+          <div class="sheet-header">
+            <span class="sheet-title">添加菜品</span>
+            <span class="sheet-close">✕</span>
+          </div>
+          <div class="sheet-body">
+            <div class="sheet-item">
+              <div class="sheet-thumb t2">🥦</div>
+              <span class="sheet-item-name">蒜蓉西兰花</span>
+              <span class="sheet-add">＋</span>
+            </div>
+            <div class="sheet-item">
+              <div class="sheet-thumb t3">🍲</div>
+              <span class="sheet-item-name">番茄牛腩</span>
+              <span class="sheet-add">＋</span>
+            </div>
+            <div class="sheet-item">
+              <div class="sheet-thumb t4">🍜</div>
+              <span class="sheet-item-name">阳春面</span>
+              <span class="sheet-add">＋</span>
+            </div>
+            <div class="sheet-item">
+              <div class="sheet-thumb t1">🥟</div>
+              <span class="sheet-item-name">韭菜盒子</span>
+              <span class="sheet-add">＋</span>
+            </div>
+          </div>
+          <div class="sheet-footer">
+            <div class="btn-save">好了</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      · 列表里<b>不显示已经在这单里的菜</b>，所以加一道少一道，不会重复添加<br>
+      · 点一下加进订单（份数 1），弹窗<b>不关</b>，可以连着挑好几道；份数回改单弹窗调<br>
+      · 菜单走 <code>dish.list</code>，只在第一次打开时拉一次，之后一直用缓存<br>
+      · 缩略图用服务端代换出来的 <code>imageSrc</code>，和点餐页同一条降级链
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
